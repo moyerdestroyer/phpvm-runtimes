@@ -100,14 +100,24 @@ def main() -> int:
         "%Y-%m-%dT%H:%M:%SZ"
     )
 
+    runtimes = manifest.get("runtimes", [])
+    expected = len(runtimes) * len(TARGETS)
     updated = 0
-    for runtime in manifest.get("runtimes", []):
+
+    for runtime in runtimes:
         php = runtime.get("php", "")
+        if not php:
+            print("error: runtime row missing php version", file=sys.stderr)
+            return 1
         artifacts = runtime.setdefault("artifacts", {})
         for target in TARGETS:
             key = (php, target)
             if key not in assets:
-                continue
+                print(
+                    f"error: missing tarball for {php} / {target} in {args.assets_dir}",
+                    file=sys.stderr,
+                )
+                return 1
             archive = assets[key]
             filename = archive.name
             artifacts[target] = {
@@ -117,8 +127,11 @@ def main() -> int:
             updated += 1
             print(f"updated {php} / {target} <- {archive.name}")
 
-    if updated == 0:
-        print("error: no manifest rows matched assets", file=sys.stderr)
+    if updated != expected:
+        print(
+            f"error: updated {updated} of {expected} required artifacts",
+            file=sys.stderr,
+        )
         return 1
 
     output = json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"

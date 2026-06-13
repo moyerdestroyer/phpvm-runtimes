@@ -44,6 +44,15 @@ jobs:
             scripts/verify-manifest.sh manifest.json
           fi
 
+      - name: Assert release tag matches manifest
+        if: inputs.strict_manifest == true
+        run: |
+          MANIFEST_TAG="$(jq -r '.catalog_tag // empty' manifest.json)"
+          if [[ "${MANIFEST_TAG}" != "${{ inputs.catalog_tag }}" ]]; then
+            echo "error: workflow catalog_tag (${{ inputs.catalog_tag }}) != manifest catalog_tag (${MANIFEST_TAG})" >&2
+            exit 1
+          fi
+
       - name: Download catalog artifacts from build run
         if: inputs.artifact_run_id != ''
         uses: actions/download-artifact@v4
@@ -64,7 +73,11 @@ jobs:
       - name: Verify catalog tarballs
         run: |
           if [[ -d dist && "$(ls -A dist/php-*.tar.gz 2>/dev/null | wc -l)" -gt 0 ]]; then
-            scripts/verify-catalog-assets.sh dist
+            if [[ "${{ inputs.strict_manifest }}" == "true" ]]; then
+              scripts/verify-manifest-assets.sh dist manifest.json
+            else
+              scripts/verify-catalog-assets.sh dist manifest.json
+            fi
           elif [[ "${{ inputs.strict_manifest }}" == "true" ]]; then
             echo "error: strict publish requires all catalog tarballs in dist/" >&2
             echo "provide artifact_run_id from a build-catalog run, or publish with strict_manifest=false" >&2
@@ -97,4 +110,5 @@ jobs:
         run: |
           echo "Draft release created for ${{ inputs.catalog_tag }}."
           echo "Review assets, then publish the draft on GitHub."
-          echo "Raw manifest: https://raw.githubusercontent.com/moyerdestroyer/phpvm-runtimes/master/manifest.json"
+          echo "Ensure manifest.json is already on the default branch before publishing the draft — consumers read:"
+          echo "  https://raw.githubusercontent.com/${{ github.repository }}/master/manifest.json"

@@ -6,6 +6,7 @@
 - [ ] All **8** tarballs built and smoke-tested (`bin/php -v`, `bin/composer -V`, `php -m`)
 - [ ] Extension lists in `manifest.json` match every platform build
 - [ ] `scripts/verify-manifest.sh --strict` passes
+- [ ] `scripts/verify-manifest-assets.sh dist` passes (tarball checksums match manifest)
 - [ ] `catalog_tag` and `published_at` set in `manifest.json`
 
 ## Build one runtime (local)
@@ -42,6 +43,7 @@ scripts/verify-manifest.sh --strict
 
 | Workflow | Purpose |
 |---|---|
+| `validate.yml` | PR/push: script syntax, manifest schema, recipe drift |
 | `build-runtime.yml` | Manual: build one PHP version × one target |
 | `build-catalog.yml` | Manual: build all 8 catalog tarballs |
 | `publish-catalog.yml` | Manual: attach artifacts + `manifest.json` to a catalog release |

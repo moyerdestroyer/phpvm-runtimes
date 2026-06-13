@@ -1,0 +1,55 @@
+# Schema, script, and manifest consistency checks on every push/PR.
+name: validate
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Shell syntax
+        run: bash -n scripts/*.sh
+
+      - name: Python syntax
+        run: python3 -m py_compile scripts/update-manifest.py
+
+      - name: Verify manifest schema
+        run: scripts/verify-manifest.sh manifest.json
+
+      - name: Build recipes match extensions.json
+        run: |
+          scripts/render-craft.sh --all
+          git diff --exit-code builds/*/craft.yml
+
+      - name: Manifest runtimes match build recipes
+        run: |
+          set -euo pipefail
+          while IFS= read -r php; do
+            if [[ ! -d "builds/${php}" ]]; then
+              echo "error: manifest lists ${php} but builds/${php}/ is missing" >&2
+              exit 1
+            fi
+          done < <(jq -r '.runtimes[].php' manifest.json)
+
+          shopt -s nullglob
+          for dir in builds/[0-9]*.[0-9]*.[0-9]*; do
+            version="$(basename "${dir}")"
+            if ! jq -e --arg v "${version}" '.runtimes[] | select(.php == $v)' manifest.json >/dev/null; then
+              echo "error: builds/${version}/ exists but is not listed in manifest.json" >&2
+              exit 1
+            fi
+          done

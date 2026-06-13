@@ -137,6 +137,7 @@ if [[ -n "${PUBLISHED_AT}" ]]; then
 fi
 
 python3 "${UPDATE_ARGS[@]}"
+"${ROOT}/scripts/verify-manifest-assets.sh" "${ASSETS_DIR}" "${MANIFEST}"
 "${ROOT}/scripts/verify-manifest.sh" --strict "${MANIFEST}"
 
 echo "catalog ready: ${CATALOG_TAG}"

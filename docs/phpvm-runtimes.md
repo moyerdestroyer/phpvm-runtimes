@@ -57,10 +57,12 @@ phpvm-runtimes/
 │   ├── prepare-catalog.sh        # Update manifest from a complete asset set
 │   ├── package-runtime.sh        # Validate tree → tar.gz + sha256
 │   ├── update-manifest.py        # Inject urls/checksums into manifest.json
-│   └── verify-manifest.sh        # Schema + HTTPS + 64-char sha256
+│   ├── verify-manifest.sh        # Schema + HTTPS + 64-char sha256
+│   └── verify-manifest-assets.sh # Tarball bytes vs manifest sha256
 │
 └── .github/
     └── workflows/
+        ├── validate.yml            # PR/push: script + manifest checks
         ├── build-runtime.yml       # Manual: 1 version x 1 target
         ├── build-catalog.yml       # Manual: all 8 catalog tarballs
         └── publish-catalog.yml     # Validate manifest, create draft release
@@ -289,9 +291,9 @@ Document minimum OS/glibc/macOS versions in `phpvm-runtimes/README.md` (e.g. “
 2. **Verify** each tarball: `bin/php -v`, `bin/composer -V`, `php -m` covers manifest `extensions`.
 3. **Stage** a complete 8-tarball asset set in `dist/`, reusing unchanged tarballs from the previous catalog when only one PHP line changed.
 4. **Run** `scripts/prepare-catalog.sh --catalog-tag catalog-YYYY-MM-DD`.
-5. **Confirm** `scripts/verify-manifest.sh --strict` passes.
-6. **Create** GitHub Release `catalog-YYYY-MM-DD`; upload 8 tarballs + `manifest.json` with `publish-catalog.yml` or manually.
-7. **Commit** `manifest.json` to `master` on phpvm-runtimes.
+5. **Confirm** `scripts/verify-manifest.sh --strict` and `scripts/verify-manifest-assets.sh dist` pass.
+6. **Commit** `manifest.json` to the default branch (`master`) on phpvm-runtimes.
+7. **Create** GitHub Release `catalog-YYYY-MM-DD` with `publish-catalog.yml` (use the **same** `catalog_tag` as step 4) or upload manually; the workflow verifies tarball checksums match the committed manifest.
 8. **Smoke test** on each OS:
    ```bash
    phpvm install 8.3

@@ -3,12 +3,18 @@
 #
 # Usage:
 #   verify-manifest.sh [--strict] [manifest.json]
+#
+# --strict additionally requires catalog_tag, published_at, non-placeholder
+# artifact urls/checksums, catalog_tag embedded in download urls, composer
+# version aligned with builds/common/composer-version.txt, and profile
+# extensions that exist in the runtime catalog set.
 set -euo pipefail
 
 STRICT=0
 MANIFEST="manifest.json"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXTENSIONS_JSON="${ROOT}/builds/common/extensions.json"
+COMPOSER_PIN="${ROOT}/builds/common/composer-version.txt"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -55,6 +61,11 @@ if [[ -f "${EXTENSIONS_JSON}" ]]; then
   EXPECTED_EXTENSIONS="$(jq -r '.catalog | sort | @tsv' "${EXTENSIONS_JSON}")"
 fi
 
+EXPECTED_COMPOSER=""
+if [[ -f "${COMPOSER_PIN}" ]]; then
+  EXPECTED_COMPOSER="$(tr -d '[:space:]' < "${COMPOSER_PIN}")"
+fi
+
 if [[ "${STRICT}" -eq 1 ]]; then
   TAG="$(jq -r '.catalog_tag // empty' "${MANIFEST}")"
   [[ -n "${TAG}" && "${TAG}" != "null" ]] || fail "--strict: catalog_tag must be set"
@@ -72,6 +83,9 @@ while IFS= read -r entry; do
 
   [[ -n "${PHP}" ]] || fail "runtime has empty php version"
   [[ -n "${COMPOSER}" ]] || fail "runtime ${PHP} has empty composer version"
+  if [[ -n "${EXPECTED_COMPOSER}" && "${COMPOSER}" != "${EXPECTED_COMPOSER}" ]]; then
+    fail "runtime ${PHP} composer ${COMPOSER} does not match ${COMPOSER_PIN} (${EXPECTED_COMPOSER})"
+  fi
   [[ "${EXT_COUNT}" -gt 0 ]] || fail "runtime ${PHP} has empty extensions list"
 
   if [[ -n "${EXPECTED_EXTENSIONS}" ]]; then
@@ -114,13 +128,27 @@ while IFS= read -r entry; do
     if [[ "${STRICT}" -eq 1 && "${URL}" != *"/${EXPECTED_NAME}" ]]; then
       fail "runtime ${PHP} ${target} url must end with /${EXPECTED_NAME}"
     fi
+
+    if [[ "${STRICT}" -eq 1 ]]; then
+      [[ "${URL}" == *"/releases/download/${TAG}/"* ]] \
+        || fail "runtime ${PHP} ${target} url must use catalog_tag ${TAG}"
+    fi
   done
 done < <(jq -c '.runtimes[]' "${MANIFEST}")
 
-# Profile names must be non-empty.
-while IFS= read -r name; do
-  [[ -n "${name}" ]] || fail "profile has empty name"
-done < <(jq -r '.profiles[].name' "${MANIFEST}")
+# Profile names must be non-empty; profile extensions must exist in the catalog runtime set.
+CATALOG_EXTENSIONS="$(jq -r '.runtimes[0].extensions[]' "${MANIFEST}")"
+while IFS= read -r profile; do
+  PROFILE_NAME="$(jq -r '.name' <<<"${profile}")"
+  [[ -n "${PROFILE_NAME}" ]] || fail "profile has empty name"
+
+  while IFS= read -r ext; do
+    [[ -n "${ext}" ]] || continue
+    if ! grep -Fxq "${ext}" <<<"${CATALOG_EXTENSIONS}"; then
+      fail "profile ${PROFILE_NAME} extension '${ext}' is not in runtime catalog extensions"
+    fi
+  done < <(jq -r '.extensions[]?' <<<"${profile}")
+done < <(jq -c '.profiles[]' "${MANIFEST}")
 
 echo "manifest OK: ${MANIFEST} (${RUNTIME_COUNT} runtimes, schema ${SCHEMA})"
 if [[ "${STRICT}" -eq 1 ]]; then
