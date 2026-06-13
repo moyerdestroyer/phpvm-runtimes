@@ -19,7 +19,7 @@ sudo apt-get install -y \
   make bison re2c flex gperf \
   git autoconf automake autopoint \
   tar unzip gzip gcc g++ \
-  bzip2 cmake patch xz-utils libtool which \
+  bzip2 cmake patch xz-utils libtool debianutils \
   pkg-config curl ca-certificates jq
 
 echo "linux build deps installed"

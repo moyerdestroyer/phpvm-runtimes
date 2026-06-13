@@ -52,6 +52,7 @@ jobs:
 
       - name: Build static PHP
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SPC_BIN: ${{ github.workspace }}/spc
           CRAFT_DIR: ${{ github.workspace }}/builds/${{ inputs.php_version }}
           EXPECTED_PHP: ${{ inputs.php_version }}
