@@ -1,0 +1,37 @@
+{
+  "catalog": [
+    "curl",
+    "dom",
+    "gd",
+    "intl",
+    "mbstring",
+    "mysqli",
+    "openssl",
+    "pdo_mysql",
+    "tokenizer",
+    "xml",
+    "zip"
+  ],
+  "spc": [
+    "ctype",
+    "curl",
+    "dom",
+    "fileinfo",
+    "filter",
+    "gd",
+    "intl",
+    "mbstring",
+    "mysqli",
+    "mysqlnd",
+    "openssl",
+    "pdo",
+    "pdo_mysql",
+    "phar",
+    "tokenizer",
+    "xml",
+    "xmlreader",
+    "xmlwriter",
+    "zip",
+    "zlib"
+  ]
+}

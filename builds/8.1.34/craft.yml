@@ -1,0 +1,6 @@
+php-version: "8.1"
+extensions: "ctype,curl,dom,fileinfo,filter,gd,intl,mbstring,mysqli,mysqlnd,openssl,pdo,pdo_mysql,phar,tokenizer,xml,xmlreader,xmlwriter,zip,zlib"
+sapi:
+  - cli
+download-options:
+  parallel: 10

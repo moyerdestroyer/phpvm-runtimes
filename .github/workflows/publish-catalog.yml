@@ -1,0 +1,73 @@
+# Create a catalog GitHub Release from built runtime artifacts.
+#
+# Prerequisite: download all 12 build-runtime artifacts into dist/ (or use
+# workflow_call from a future orchestrator). This workflow validates manifest
+# and publishes a draft release.
+name: publish-catalog
+
+on:
+  workflow_dispatch:
+    inputs:
+      catalog_tag:
+        description: Release tag (e.g. catalog-2026-06-13)
+        required: true
+        type: string
+      strict_manifest:
+        description: Require non-placeholder manifest (must be updated first)
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Verify manifest
+        run: |
+          if [[ "${{ inputs.strict_manifest }}" == "true" ]]; then
+            scripts/verify-manifest.sh --strict manifest.json
+          else
+            scripts/verify-manifest.sh manifest.json
+          fi
+
+      - name: Download workflow artifacts (optional)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List staged assets
+        run: |
+          echo "manifest.json"
+          ls -la dist/ 2>/dev/null || echo "(no dist/ artifacts — upload tarballs manually to release)"
+
+      - name: Create draft catalog release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.catalog_tag }}
+          name: ${{ inputs.catalog_tag }}
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            manifest.json
+            dist/php-*.tar.gz
+            dist/php-*.tar.gz.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "Draft release created for ${{ inputs.catalog_tag }}."
+          echo "Review assets, then publish the draft on GitHub."
+          echo "Raw manifest: https://raw.githubusercontent.com/moyerdestroyer/phpvm-runtimes/master/manifest.json"

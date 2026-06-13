@@ -1,0 +1,24 @@
+# Shared build notes
+
+## Tooling
+
+Runtimes are built with [StaticPHP](https://static-php.dev/) (`spc` v3). Each version directory contains a `craft.yml` recipe.
+
+## Extension catalog
+
+`extensions.json` lists:
+
+- **`catalog`** — extensions published in `manifest.json` (must match `php -m` on every platform build).
+- **`spc`** — superset passed to StaticPHP (includes dependencies such as `mysqlnd`, `pdo`, `zlib`).
+
+## Platform floors
+
+| Target | Built on | Minimum host |
+|---|---|---|
+| `x86_64-unknown-linux-gnu` | `ubuntu-22.04` | glibc 2.35+ (Ubuntu 22.04 class) |
+| `x86_64-apple-darwin` | `macos-13` | macOS 12+ |
+| `aarch64-apple-darwin` | `macos-latest` | macOS 12+ |
+
+## Composer
+
+Version pinned in `composer-version.txt`. Builds download the official PHAR and install a `bin/composer` wrapper next to `bin/php`.

@@ -1,0 +1,18 @@
+# Build outputs — binaries live on GitHub Releases only
+dist/
+*.tar.gz
+*.tar.gz.sha256
+
+# StaticPHP / local build trees
+.spc/
+buildroot/
+spc
+spc.exe
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor / OS
+.DS_Store
+*.swp
