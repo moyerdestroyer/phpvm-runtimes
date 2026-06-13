@@ -67,7 +67,9 @@ trap 'rm -f "${TMP}"' EXIT
 
 URL="${CHANNEL}/${ASSET}"
 echo "downloading ${URL}"
-curl -fsSL -o "${TMP}" "${URL}"
+curl --fail --silent --show-error --location \
+  --retry 5 --retry-delay 2 --retry-max-time 120 --retry-all-errors \
+  -o "${TMP}" "${URL}"
 chmod +x "${TMP}"
 
 if command -v sha256sum >/dev/null 2>&1; then
