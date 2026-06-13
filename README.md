@@ -10,8 +10,8 @@ Prebuilt PHP + Composer runtimes and the [manifest v2.1](docs/phpvm-runtimes.md)
 ## Catalog policy
 
 - **4** PHP minor lines (currently 8.1–8.4), latest patch each
-- **3** platforms per version: Linux x86_64, macOS Intel, macOS Apple Silicon
-- **12** release tarballs per catalog publish
+- **2** platforms per version: Linux x86_64, macOS Apple Silicon
+- **8** release tarballs per catalog publish
 
 See [docs/phpvm-runtimes.md](docs/phpvm-runtimes.md) for the full publisher guide.
 
@@ -20,10 +20,9 @@ See [docs/phpvm-runtimes.md](docs/phpvm-runtimes.md) for the full publisher guid
 | Target | Host requirement |
 |---|---|
 | `x86_64-unknown-linux-gnu` | glibc 2.35+ (Ubuntu 22.04 class) |
-| `x86_64-apple-darwin` | macOS 12+ |
 | `aarch64-apple-darwin` | macOS 12+ |
 
-Linux ARM64 and Windows are not in the v1 catalog.
+macOS Intel, Linux ARM64, and Windows are not in the v1 catalog.
 
 ## Consumer setup
 
@@ -54,10 +53,26 @@ Binaries are **not** committed — they attach to GitHub Releases (`catalog-YYYY
 
 ## Publishing (maintainers)
 
-1. Dispatch **Build runtime** for each version × platform (or build all 12 locally).
-2. Run `scripts/update-manifest.py` with the built tarballs and catalog tag.
-3. Run `scripts/verify-manifest.sh --strict`.
-4. Dispatch **Publish catalog** (or create the release manually).
-5. Commit updated `manifest.json` to `master`.
+Build one local host runtime:
+
+```bash
+scripts/build-runtime-local.sh 8.3.31
+```
+
+Prepare a full catalog from `dist/`:
+
+```bash
+scripts/prepare-catalog.sh --catalog-tag catalog-2026-06-13
+```
+
+For patch-only rotation, put the newly rebuilt tarballs in `dist/` and copy unchanged tarballs from a previous asset directory:
+
+```bash
+scripts/prepare-catalog.sh \
+  --catalog-tag catalog-2026-06-13 \
+  --reuse-dir previous-catalog-assets/
+```
+
+Then dispatch **Publish catalog** with the `build-catalog` run ID, or create the release manually, and commit updated `manifest.json` to `master`.
 
 Details: [AGENTS.md](AGENTS.md).

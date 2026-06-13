@@ -1,6 +1,6 @@
 # phpvm-runtimes — Publisher Guide
 
-This document defines the **phpvm-runtimes** companion repository: how to lay out builds, name release assets, and publish `manifest.json` so the [phpvm](https://github.com/moyerdestroyer/phpvm) CLI can install PHP on **Linux x86_64** and **macOS (Intel + Apple Silicon)**.
+This document defines the **phpvm-runtimes** companion repository: how to lay out builds, name release assets, and publish `manifest.json` so the [phpvm](https://github.com/moyerdestroyer/phpvm) CLI can install PHP on **Linux x86_64** and **macOS Apple Silicon**.
 
 The **phpvm** repo ships the CLI. **phpvm-runtimes** ships PHP+Composer trees and the manifest. Do not mix the two in one GitHub Release.
 
@@ -12,11 +12,11 @@ The **phpvm** repo ships the CLI. **phpvm-runtimes** ships PHP+Composer trees an
 |---|---|
 | PHP minor lines published | **4** (e.g. 8.1, 8.2, 8.3, 8.4 — adjust over time) |
 | Patches per minor | **Latest only** (one exact version per line, e.g. `8.3.23`) |
-| Platforms per version | **3** target triples (see below) |
-| Total remote tarballs | **12** (4 versions × 3 platforms) |
+| Platforms per version | **2** target triples (see below) |
+| Total remote tarballs | **8** (4 versions × 2 platforms) |
 | Older patches | **Not hosted**; remain usable only if already installed under `~/.phpvm/runtimes/<version>/` |
 
-When PHP `8.3.24` replaces `8.3.23`, update the manifest entry and replace the three `8.3.24` assets. Delete or expire `8.3.23` assets to save space.
+When PHP `8.3.24` replaces `8.3.23`, update the manifest entry and replace the two `8.3.24` assets. Delete or expire `8.3.23` assets to save space.
 
 Users install with specifiers like `8.3`, `8.3.latest`, or the exact patch `8.3.23`. Exact patches not in the manifest fail fresh install by design.
 
@@ -29,10 +29,9 @@ Must match phpvm’s installer and runtime resolution (same strings as `install.
 | Target | OS / CPU |
 |---|---|
 | `x86_64-unknown-linux-gnu` | Linux x86_64 (glibc; built on Ubuntu 22.04+ class runners) |
-| `x86_64-apple-darwin` | macOS Intel |
 | `aarch64-apple-darwin` | macOS Apple Silicon |
 
-**Not in v1 catalog:** Linux ARM64 (`aarch64-unknown-linux-gnu`), Windows.
+**Not in v1 catalog:** macOS Intel (`x86_64-apple-darwin`), Linux ARM64 (`aarch64-unknown-linux-gnu`), Windows.
 
 ---
 
@@ -44,27 +43,27 @@ phpvm-runtimes/
 ├── manifest.json                 # Source of truth (also attached to releases)
 ├── AGENTS.md                     # Optional: your build/publish checklist
 │
-├── profiles/                     # Optional duplicates of phpvm starters (usually omit;
-│                                 # phpvm bundles wordpress/laravel/minimal.ini)
-│
 ├── builds/                       # Build recipes (not the binaries themselves)
 │   ├── common/
 │   │   ├── extensions.json       # Shared extension list for “full” builds
 │   │   └── composer-version.txt  # e.g. 2.9.2
-│   ├── 8.3.23/
-│   │   ├── static-php-cli.json   # Per-version SPC config (or shell driver)
-│   │   └── notes.md              # glibc floor, known quirks
+│   ├── 8.3.31/
+│   │   ├── craft.yml             # Generated StaticPHP recipe
+│   │   └── notes.md              # Release notes and known quirks
 │   └── …
 │
 ├── scripts/
+│   ├── build-runtime-local.sh    # Build/package one host runtime end-to-end
+│   ├── prepare-catalog.sh        # Update manifest from a complete asset set
 │   ├── package-runtime.sh        # Validate tree → tar.gz + sha256
 │   ├── update-manifest.py        # Inject urls/checksums into manifest.json
 │   └── verify-manifest.sh        # Schema + HTTPS + 64-char sha256
 │
 └── .github/
     └── workflows/
-        ├── build-runtime.yml       # matrix: 3 targets × 1 version (manual dispatch)
-        └── publish-catalog.yml     # Bump manifest, create GitHub Release
+        ├── build-runtime.yml       # Manual: 1 version x 1 target
+        ├── build-catalog.yml       # Manual: all 8 catalog tarballs
+        └── publish-catalog.yml     # Validate manifest, create draft release
 ```
 
 **Do not commit** multi-hundred-MB tarballs to git. Binaries live only on **GitHub Releases** (or object storage later).
@@ -79,7 +78,8 @@ Each archive is a **gzip tarball** with a **single top-level directory** (stripp
 php-8.3.23-x86_64-unknown-linux-gnu/    # top-level dir (any single segment name is fine)
 └── bin/
     ├── php                             # executable
-    └── composer                          # executable (PHAR or binary wrapper)
+    ├── composer                        # executable wrapper
+    └── composer.phar                   # Composer PHAR used by the wrapper
 ```
 
 phpvm does **not** require `etc/` inside the tarball; it creates `etc/php.ini` and `metadata.json` on first `phpvm install` / profile activation.
@@ -87,7 +87,7 @@ phpvm does **not** require `etc/` inside the tarball; it creates `etc/php.ini` a
 ### Packaging rules
 
 - Format: `.tar.gz`
-- Root contains **only** `bin/php` and `bin/composer` (plus anything those need at runtime, e.g. `lib/` if your static build ships shared libs — prefer fully static when possible)
+- Root contains `bin/php`, `bin/composer`, `bin/composer.phar` (plus anything those need at runtime, e.g. `lib/` if your static build ships shared libs — prefer fully static when possible)
 - No symlinks pointing outside the archive (phpvm rejects unsafe tar entries)
 - Run `package-runtime.sh` to produce **sidecar checksum**:
 
@@ -112,7 +112,6 @@ Examples:
 
 ```text
 php-8.3.23-x86_64-unknown-linux-gnu.tar.gz
-php-8.3.23-x86_64-apple-darwin.tar.gz
 php-8.3.23-aarch64-apple-darwin.tar.gz
 ```
 
@@ -122,8 +121,8 @@ Use a **catalog release** per publish (not one release per PHP patch forever):
 
 | Approach | Tag example | Assets |
 |---|---|---|
-| **Rolling catalog** (simplest) | `catalog` or `catalog-2025-06-12` | All 12 tarballs + `manifest.json` |
-| Per PHP version | `php-8.3.23` | 3 tarballs for that version only |
+| **Rolling catalog** (simplest) | `catalog` or `catalog-2025-06-12` | All 8 tarballs + `manifest.json` |
+| Per PHP version | `php-8.3.23` | 2 tarballs for that version only |
 
 **Recommended for v1:** tag `catalog-YYYY-MM-DD`, attach **all current tarballs + `manifest.json`**, set manifest URLs to:
 
@@ -179,10 +178,6 @@ Manifest v2 in phpvm assumed **one URL per PHP version**. Multi-platform catalog
       "url": "https://github.com/.../php-8.3.23-x86_64-unknown-linux-gnu.tar.gz",
       "sha256": "abcdef0123456789..."
     },
-    "x86_64-apple-darwin": {
-      "url": "https://github.com/.../php-8.3.23-x86_64-apple-darwin.tar.gz",
-      "sha256": "..."
-    },
     "aarch64-apple-darwin": {
       "url": "https://github.com/.../php-8.3.23-aarch64-apple-darwin.tar.gz",
       "sha256": "..."
@@ -237,7 +232,6 @@ If the host triple is missing from `artifacts`, fail with a clear error (e.g. Li
       "extensions": ["curl", "mbstring", "openssl", "xml", "zip"],
       "artifacts": {
         "x86_64-unknown-linux-gnu": { "url": "…", "sha256": "…" },
-        "x86_64-apple-darwin": { "url": "…", "sha256": "…" },
         "aarch64-apple-darwin": { "url": "…", "sha256": "…" }
       }
     },
@@ -269,21 +263,20 @@ Extension lists should match what you actually compile into the static build for
 
 ## Build matrix (what to produce)
 
-For each catalog publish, build **12 artifacts**:
+For each catalog publish, build **8 artifacts**:
 
-| PHP | Linux x86_64 | macOS Intel | macOS ARM |
-|---|---|---|---|
-| 8.1.x (latest) | ✓ | ✓ | ✓ |
-| 8.2.x (latest) | ✓ | ✓ | ✓ |
-| 8.3.x (latest) | ✓ | ✓ | ✓ |
-| 8.4.x (latest) | ✓ | ✓ | ✓ |
+| PHP | Linux x86_64 | macOS ARM |
+|---|---|---|
+| 8.1.x (latest) | ✓ | ✓ |
+| 8.2.x (latest) | ✓ | ✓ |
+| 8.3.x (latest) | ✓ | ✓ |
+| 8.4.x (latest) | ✓ | ✓ |
 
 Suggested tooling: [static-php-cli](https://github.com/crazywhalecc/static-php-cli) with a shared extension set per PHP minor.
 
 | Target | Where to build |
 |---|---|
 | `x86_64-unknown-linux-gnu` | GitHub Actions `ubuntu-22.04` or local Linux |
-| `x86_64-apple-darwin` | GitHub Actions `macos-13` |
 | `aarch64-apple-darwin` | GitHub Actions `macos-latest` |
 
 Document minimum OS/glibc/macOS versions in `phpvm-runtimes/README.md` (e.g. “Linux: glibc 2.35+”, “macOS 12+”).
@@ -292,12 +285,12 @@ Document minimum OS/glibc/macOS versions in `phpvm-runtimes/README.md` (e.g. “
 
 ## Publish checklist
 
-1. **Build** all 12 tarballs for the new catalog.
+1. **Build** changed tarballs with `build-catalog.yml`, `build-runtime.yml`, or `scripts/build-runtime-local.sh`.
 2. **Verify** each tarball: `bin/php -v`, `bin/composer -V`, `php -m` covers manifest `extensions`.
-3. **Compute** SHA-256 for each `.tar.gz`.
-4. **Update** `manifest.json` (four `runtimes`, three `artifacts` each).
-5. **Run** `scripts/verify-manifest.sh`.
-6. **Create** GitHub Release `catalog-YYYY-MM-DD`; upload 12 tarballs + `manifest.json`.
+3. **Stage** a complete 8-tarball asset set in `dist/`, reusing unchanged tarballs from the previous catalog when only one PHP line changed.
+4. **Run** `scripts/prepare-catalog.sh --catalog-tag catalog-YYYY-MM-DD`.
+5. **Confirm** `scripts/verify-manifest.sh --strict` passes.
+6. **Create** GitHub Release `catalog-YYYY-MM-DD`; upload 8 tarballs + `manifest.json` with `publish-catalog.yml` or manually.
 7. **Commit** `manifest.json` to `master` on phpvm-runtimes.
 8. **Smoke test** on each OS:
    ```bash
@@ -312,11 +305,11 @@ Document minimum OS/glibc/macOS versions in `phpvm-runtimes/README.md` (e.g. “
 
 ## Rotation example
 
-**Before:** manifest lists `8.3.23` with three artifacts.
+**Before:** manifest lists `8.3.23` with two artifacts.
 
 **After PHP 8.3.24 ships:**
 
-1. Build three new `8.3.24` tarballs.
+1. Build two new `8.3.24` tarballs.
 2. Replace the single `runtimes[]` row: `php` `8.3.23` → `8.3.24`, new urls/checksums.
 3. Publish new catalog release; remove `8.3.23` assets when convenient.
 4. Users with `~/.phpvm/runtimes/8.3.23/` keep working; `phpvm install 8.3.23` on a new machine fails unless they use a custom manifest mirror.
@@ -358,7 +351,7 @@ phpvm install 8.3   # uses manifest_url + host target to pick artifact
 
 1. Create empty `phpvm-runtimes` repo with this layout.
 2. Implement manifest **v2.1 `artifacts`** parsing in phpvm (`src/manifest.rs` + `static_php` download path).
-3. Build **one** version end-to-end (e.g. `8.3.23` × Linux only) as a smoke test, then fill the 12-artifact matrix.
+3. Build **one** version end-to-end (e.g. `8.3.23` × Linux only) as a smoke test, then fill the 8-artifact matrix.
 4. Set `manifest_url` in docs/examples; later point `DEFAULT_MANIFEST_URL` at the raw GitHub URL or `phpvm.com`.
 
 See also: [manifest-v2.md](./manifest-v2.md) (profile presets and installed runtime layout).

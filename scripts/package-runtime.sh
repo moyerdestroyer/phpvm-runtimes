@@ -34,8 +34,10 @@ for bin in php composer; do
   fi
 done
 
-# Smoke test PHP before packaging.
+# Smoke test PHP and catalog extensions before packaging.
 "${STAGING}/bin/php" -v >/dev/null
+"${STAGING}/bin/composer" -V >/dev/null
+"$(dirname "${BASH_SOURCE[0]}")/verify-extensions.sh" "${STAGING}/bin/php"
 
 ARCHIVE_NAME="php-${PHP_VERSION}-${TARGET}.tar.gz"
 ROOT_NAME="php-${PHP_VERSION}-${TARGET}"
@@ -46,6 +48,9 @@ PACK_ROOT="${WORK}/${ROOT_NAME}"
 mkdir -p "${PACK_ROOT}/bin"
 cp -a "${STAGING}/bin/php" "${PACK_ROOT}/bin/"
 cp -a "${STAGING}/bin/composer" "${PACK_ROOT}/bin/"
+if [[ -f "${STAGING}/bin/composer.phar" ]]; then
+  cp -a "${STAGING}/bin/composer.phar" "${PACK_ROOT}/bin/"
+fi
 
 # Copy optional runtime deps (e.g. lib/) without following external symlinks.
 if [[ -d "${STAGING}/lib" ]]; then

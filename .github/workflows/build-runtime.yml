@@ -21,7 +21,6 @@ on:
         type: choice
         options:
           - x86_64-unknown-linux-gnu
-          - x86_64-apple-darwin
           - aarch64-apple-darwin
 
 permissions:
@@ -29,78 +28,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-22.04
-            spc_asset: spc-linux-x86_64
-          - target: x86_64-apple-darwin
-            os: macos-13
-            spc_asset: spc-macos-x86_64
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            spc_asset: spc-macos-aarch64
-
-    steps:
-      - name: Skip non-selected target
-        if: matrix.target != inputs.target
-        run: echo "Skipping ${{ matrix.target }}"
-
-      - uses: actions/checkout@v4
-        if: matrix.target == inputs.target
-
-      - name: Download StaticPHP (spc)
-        if: matrix.target == inputs.target
-        run: |
-          curl -fsSL -o spc "https://dl.static-php.dev/v3/spc-bin/nightly/${{ matrix.spc_asset }}"
-          chmod +x spc
-
-      - name: Build static PHP
-        if: matrix.target == inputs.target
-        env:
-          SPC_BIN: ${{ github.workspace }}/spc
-          CRAFT_DIR: ${{ github.workspace }}/builds/${{ inputs.php_version }}
-        run: scripts/build-static-php.sh
-
-      - name: Stage runtime tree
-        if: matrix.target == inputs.target
-        run: |
-          STAGING="${RUNNER_TEMP}/runtime-staging"
-          mkdir -p "${STAGING}/bin"
-          cp "builds/${{ inputs.php_version }}/buildroot/bin/php" "${STAGING}/bin/php"
-          scripts/install-composer.sh "${STAGING}"
-
-      - name: Package tarball
-        if: matrix.target == inputs.target
-        run: |
-          mkdir -p dist
-          scripts/package-runtime.sh \
-            "${RUNNER_TEMP}/runtime-staging" \
-            "${{ inputs.php_version }}" \
-            "${{ inputs.target }}" \
-            dist
-
-      - name: Verify extensions
-        if: matrix.target == inputs.target
-        run: |
-          STAGING="${RUNNER_TEMP}/runtime-staging"
-          MODULES="$("${STAGING}/bin/php" -m)"
-          for ext in curl dom gd intl mbstring mysqli openssl pdo_mysql tokenizer xml zip; do
-            echo "${MODULES}" | grep -qi "^${ext}$" || {
-              echo "missing extension: ${ext}"
-              exit 1
-            }
-          done
-
-      - name: Upload artifact
-        if: matrix.target == inputs.target
-        uses: actions/upload-artifact@v4
-        with:
-          name: php-${{ inputs.php_version }}-${{ inputs.target }}
-          path: |
-            dist/php-*.tar.gz
-            dist/php-*.tar.gz.sha256
-          if-no-files-found: error
-          retention-days: 14
+    uses: ./.github/workflows/build-runtime-reusable.yml
+    with:
+      php_version: ${{ inputs.php_version }}
+      target: ${{ inputs.target }}

@@ -1,0 +1,59 @@
+# Build all 8 catalog tarballs (4 PHP versions × 2 platforms).
+name: build-catalog
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php_version: "8.1.34"
+            target: x86_64-unknown-linux-gnu
+          - php_version: "8.1.34"
+            target: aarch64-apple-darwin
+          - php_version: "8.2.31"
+            target: x86_64-unknown-linux-gnu
+          - php_version: "8.2.31"
+            target: aarch64-apple-darwin
+          - php_version: "8.3.31"
+            target: x86_64-unknown-linux-gnu
+          - php_version: "8.3.31"
+            target: aarch64-apple-darwin
+          - php_version: "8.4.22"
+            target: x86_64-unknown-linux-gnu
+          - php_version: "8.4.22"
+            target: aarch64-apple-darwin
+
+    uses: ./.github/workflows/build-runtime-reusable.yml
+    with:
+      php_version: ${{ matrix.php_version }}
+      target: ${{ matrix.target }}
+
+  collect:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all runtime artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Verify full catalog asset set
+        run: scripts/verify-catalog-assets.sh dist
+
+      - name: Upload combined catalog artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-tarballs
+          path: dist/php-*.tar.gz*
+          if-no-files-found: error
+          retention-days: 30

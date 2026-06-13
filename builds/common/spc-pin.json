@@ -1,0 +1,7 @@
+{
+  "channel": "https://dl.static-php.dev/v3/spc-bin/nightly",
+  "assets": {
+    "spc-linux-x86_64": "a8c7d64709bf8c94277cdb1244194dc44e30a223e0abd14df0afcce30213cf5d",
+    "spc-macos-aarch64": "48d9b7f4a66822dec54e8c53bef9996464146a51d3ea7dd73d46b7ad5533d285"
+  }
+}

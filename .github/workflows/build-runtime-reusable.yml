@@ -1,0 +1,84 @@
+# Reusable job: build, package, and verify one runtime tarball.
+on:
+  workflow_call:
+    inputs:
+      php_version:
+        required: true
+        type: string
+      target:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: >-
+      ${{
+        inputs.target == 'x86_64-unknown-linux-gnu' && 'ubuntu-22.04' ||
+        inputs.target == 'aarch64-apple-darwin' && 'macos-latest' ||
+        'ubuntu-22.04'
+      }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select target settings
+        run: |
+          case "${{ inputs.target }}" in
+            x86_64-unknown-linux-gnu)
+              echo "SPC_ASSET=spc-linux-x86_64" >> "${GITHUB_ENV}"
+              ;;
+            aarch64-apple-darwin)
+              echo "SPC_ASSET=spc-macos-aarch64" >> "${GITHUB_ENV}"
+              ;;
+            *)
+              echo "error: unsupported target: ${{ inputs.target }}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Install Linux build dependencies
+        if: inputs.target == 'x86_64-unknown-linux-gnu'
+        run: scripts/setup-linux-build-deps.sh
+
+      - name: Install macOS build dependencies
+        if: inputs.target == 'aarch64-apple-darwin'
+        run: brew install bison re2c flex gperf pkg-config cmake jq
+
+      - name: Download pinned StaticPHP (spc)
+        run: scripts/download-spc.sh "${SPC_ASSET}" "${{ github.workspace }}/spc"
+
+      - name: Build static PHP
+        env:
+          SPC_BIN: ${{ github.workspace }}/spc
+          CRAFT_DIR: ${{ github.workspace }}/builds/${{ inputs.php_version }}
+          EXPECTED_PHP: ${{ inputs.php_version }}
+        run: scripts/build-static-php.sh
+
+      - name: Stage runtime tree
+        run: |
+          STAGING="${RUNNER_TEMP}/runtime-staging"
+          mkdir -p "${STAGING}/bin"
+          cp "builds/${{ inputs.php_version }}/buildroot/bin/php" "${STAGING}/bin/php"
+          scripts/install-composer.sh "${STAGING}"
+
+      - name: Package tarball
+        run: |
+          mkdir -p dist
+          scripts/package-runtime.sh \
+            "${RUNNER_TEMP}/runtime-staging" \
+            "${{ inputs.php_version }}" \
+            "${{ inputs.target }}" \
+            dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-${{ inputs.php_version }}-${{ inputs.target }}
+          path: |
+            dist/php-*.tar.gz
+            dist/php-*.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14

@@ -23,7 +23,6 @@ StaticPHP doctor requires **flex**, **gperf**, and **musl-wrapper**. On Linux wi
 | Target | Built on | Minimum host |
 |---|---|---|
 | `x86_64-unknown-linux-gnu` | `ubuntu-22.04` | glibc 2.35+ (Ubuntu 22.04 class) |
-| `x86_64-apple-darwin` | `macos-13` | macOS 12+ |
 | `aarch64-apple-darwin` | `macos-latest` | macOS 12+ |
 
 ## Composer

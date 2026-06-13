@@ -1,6 +1,6 @@
 # Create a catalog GitHub Release from built runtime artifacts.
 #
-# Prerequisite: download all 12 build-runtime artifacts into dist/ (or use
+# Prerequisite: download all 8 build-runtime artifacts into dist/ (or use
 # workflow_call from a future orchestrator). This workflow validates manifest
 # and publishes a draft release.
 name: publish-catalog
@@ -17,6 +17,11 @@ on:
         required: true
         type: boolean
         default: true
+      artifact_run_id:
+        description: Optional build-catalog run ID to download tarballs from
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -39,12 +44,34 @@ jobs:
             scripts/verify-manifest.sh manifest.json
           fi
 
-      - name: Download workflow artifacts (optional)
+      - name: Download catalog artifacts from build run
+        if: inputs.artifact_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.artifact_run_id }}
+          path: dist
+          merge-multiple: true
+
+      - name: Download current-run artifacts (optional)
+        if: inputs.artifact_run_id == ''
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           path: dist
           merge-multiple: true
+
+      - name: Verify catalog tarballs
+        run: |
+          if [[ -d dist && "$(ls -A dist/php-*.tar.gz 2>/dev/null | wc -l)" -gt 0 ]]; then
+            scripts/verify-catalog-assets.sh dist
+          elif [[ "${{ inputs.strict_manifest }}" == "true" ]]; then
+            echo "error: strict publish requires all catalog tarballs in dist/" >&2
+            echo "provide artifact_run_id from a build-catalog run, or publish with strict_manifest=false" >&2
+            exit 1
+          else
+            echo "warning: no dist/php-*.tar.gz - attach tarballs manually before publishing"
+          fi
 
       - name: List staged assets
         run: |

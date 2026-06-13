@@ -1,13 +1,27 @@
-# Build outputs — binaries live on GitHub Releases only
+# Release artifacts — binaries live on GitHub Releases only
 dist/
 *.tar.gz
 *.tar.gz.sha256
 
-# StaticPHP / local build trees
+# StaticPHP binary (download via scripts/download-spc.sh)
+/spc
+/spc.exe
+
+# StaticPHP working trees (repo root or under builds/*/)
 .spc/
+.spc.cache.php
 buildroot/
-spc
-spc.exe
+source/
+downloads/
+pkgroot/
+log/
+
+builds/*/.spc.cache.php
+builds/*/buildroot/
+builds/*/source/
+builds/*/downloads/
+builds/*/pkgroot/
+builds/*/log/
 
 # Python
 __pycache__/

@@ -7,6 +7,8 @@ set -euo pipefail
 
 STRICT=0
 MANIFEST="manifest.json"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+EXTENSIONS_JSON="${ROOT}/builds/common/extensions.json"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,7 +36,6 @@ fi
 
 TARGETS=(
   "x86_64-unknown-linux-gnu"
-  "x86_64-apple-darwin"
   "aarch64-apple-darwin"
 )
 
@@ -48,6 +49,11 @@ SCHEMA="$(jq -r '.schema // empty' "${MANIFEST}")"
 
 RUNTIME_COUNT="$(jq '.runtimes | length' "${MANIFEST}")"
 [[ "${RUNTIME_COUNT}" -eq 4 ]] || fail "expected exactly 4 runtimes, got ${RUNTIME_COUNT}"
+
+EXPECTED_EXTENSIONS=""
+if [[ -f "${EXTENSIONS_JSON}" ]]; then
+  EXPECTED_EXTENSIONS="$(jq -r '.catalog | sort | @tsv' "${EXTENSIONS_JSON}")"
+fi
 
 if [[ "${STRICT}" -eq 1 ]]; then
   TAG="$(jq -r '.catalog_tag // empty' "${MANIFEST}")"
@@ -67,6 +73,13 @@ while IFS= read -r entry; do
   [[ -n "${PHP}" ]] || fail "runtime has empty php version"
   [[ -n "${COMPOSER}" ]] || fail "runtime ${PHP} has empty composer version"
   [[ "${EXT_COUNT}" -gt 0 ]] || fail "runtime ${PHP} has empty extensions list"
+
+  if [[ -n "${EXPECTED_EXTENSIONS}" ]]; then
+    RUNTIME_EXTENSIONS="$(jq -r '.extensions | sort | @tsv' <<<"${entry}")"
+    if [[ "${RUNTIME_EXTENSIONS}" != "${EXPECTED_EXTENSIONS}" ]]; then
+      fail "runtime ${PHP} extensions do not match builds/common/extensions.json catalog"
+    fi
+  fi
 
   if [[ ! "${PHP}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     fail "runtime ${PHP} is not MAJOR.MINOR.PATCH"

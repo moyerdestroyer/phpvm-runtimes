@@ -13,7 +13,6 @@ from pathlib import Path
 
 TARGETS = (
     "x86_64-unknown-linux-gnu",
-    "x86_64-apple-darwin",
     "aarch64-apple-darwin",
 )
 
