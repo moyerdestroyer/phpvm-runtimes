@@ -12,6 +12,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CRAFT_DIR="${CRAFT_DIR:-$(pwd)}"
 
+# Homebrew/Linuxbrew often supplies flex/gperf without sudo.
+if [[ -d "${HOME}/linuxbrew/.linuxbrew/bin" ]]; then
+  export PATH="${HOME}/linuxbrew/.linuxbrew/bin:${PATH}"
+fi
+if [[ -d "/home/linuxbrew/.linuxbrew/bin" ]]; then
+  export PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
+fi
+
 if [[ ! -f "${CRAFT_DIR}/craft.yml" ]]; then
   echo "error: craft.yml not found in ${CRAFT_DIR}" >&2
   exit 1
