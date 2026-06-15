@@ -33,5 +33,33 @@
     "xmlwriter",
     "zip",
     "zlib"
+  ],
+  "dynamic_catalog": [
+    "curl",
+    "dom",
+    "fileinfo",
+    "gd",
+    "iconv",
+    "intl",
+    "mbstring",
+    "mysqli",
+    "opcache",
+    "openssl",
+    "pdo",
+    "pdo_mysql",
+    "pdo_sqlite",
+    "phar",
+    "session",
+    "simplexml",
+    "soap",
+    "sockets",
+    "sqlite3",
+    "tokenizer",
+    "xdebug",
+    "xml",
+    "xmlreader",
+    "xmlwriter",
+    "zip",
+    "zlib"
   ]
 }

@@ -18,6 +18,7 @@ STAGING="$1"
 VERSION="${2:-$(cat "$(dirname "${BASH_SOURCE[0]}")/../builds/common/composer-version.txt")}"
 PHP="${STAGING}/bin/php"
 BIN_DIR="${STAGING}/bin"
+PHP_ENV=()
 
 if [[ ! -x "${PHP}" ]]; then
   echo "error: ${PHP} not found — build PHP first" >&2
@@ -25,6 +26,12 @@ if [[ ! -x "${PHP}" ]]; then
 fi
 
 mkdir -p "${BIN_DIR}"
+if [[ -d "${STAGING}/etc" ]]; then
+  PHP_ENV+=(PHPRC="${STAGING}/etc")
+fi
+if [[ -d "${STAGING}/etc/conf.d" ]]; then
+  PHP_ENV+=(PHP_INI_SCAN_DIR="${STAGING}/etc/conf.d")
+fi
 TMP="$(mktemp)"
 SUM_TMP="$(mktemp)"
 trap 'rm -f "${TMP}" "${SUM_TMP}"' EXIT
@@ -66,5 +73,5 @@ EOF
 chmod +x "${BIN_DIR}/composer"
 
 # Wrapper invokes php; verify via the phar directly for clarity.
-"${PHP}" "${BIN_DIR}/composer.phar" --version
+env "${PHP_ENV[@]}" "${PHP}" "${BIN_DIR}/composer.phar" --version
 echo "composer ${VERSION} installed in ${BIN_DIR}"

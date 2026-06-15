@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate manifest.json schema (v2.1) and optional release readiness.
+# Validate manifest.json schema (v2.1 static or v3.0 dynamic) and optional release readiness.
 #
 # Usage:
 #   verify-manifest.sh [--strict] [manifest.json]
@@ -51,7 +51,8 @@ fail() {
 }
 
 SCHEMA="$(jq -r '.schema // empty' "${MANIFEST}")"
-[[ "${SCHEMA}" == "2.1" ]] || fail "schema must be 2.1 (got '${SCHEMA}')"
+[[ "${SCHEMA}" == "2.1" || "${SCHEMA}" == "3.0" ]] \
+  || fail "schema must be 2.1 or 3.0 (got '${SCHEMA}')"
 
 RUNTIME_COUNT="$(jq '.runtimes | length' "${MANIFEST}")"
 [[ "${RUNTIME_COUNT}" -eq 4 ]] || fail "expected exactly 4 runtimes, got ${RUNTIME_COUNT}"
@@ -80,6 +81,7 @@ while IFS= read -r entry; do
   PHP="$(jq -r '.php' <<<"${entry}")"
   COMPOSER="$(jq -r '.composer' <<<"${entry}")"
   EXT_COUNT="$(jq '.extensions | length' <<<"${entry}")"
+  RUNTIME_TYPE="$(jq -r '.runtime_type // "static"' <<<"${entry}")"
 
   [[ -n "${PHP}" ]] || fail "runtime has empty php version"
   [[ -n "${COMPOSER}" ]] || fail "runtime ${PHP} has empty composer version"
@@ -87,12 +89,28 @@ while IFS= read -r entry; do
     fail "runtime ${PHP} composer ${COMPOSER} does not match ${COMPOSER_PIN} (${EXPECTED_COMPOSER})"
   fi
   [[ "${EXT_COUNT}" -gt 0 ]] || fail "runtime ${PHP} has empty extensions list"
+  [[ "${RUNTIME_TYPE}" == "static" || "${RUNTIME_TYPE}" == "dynamic" ]] \
+    || fail "runtime ${PHP} runtime_type must be static or dynamic"
 
   if [[ -n "${EXPECTED_EXTENSIONS}" ]]; then
-    RUNTIME_EXTENSIONS="$(jq -r '.extensions | sort | @tsv' <<<"${entry}")"
+    RUNTIME_EXTENSIONS="$(jq -r '[.extensions[] | if type == "string" then . else .name end] | sort | @tsv' <<<"${entry}")"
     if [[ "${RUNTIME_EXTENSIONS}" != "${EXPECTED_EXTENSIONS}" ]]; then
       fail "runtime ${PHP} extensions do not match builds/common/extensions.json catalog"
     fi
+  fi
+
+  if [[ "${SCHEMA}" == "3.0" ]]; then
+    [[ "${RUNTIME_TYPE}" == "dynamic" ]] \
+      || fail "runtime ${PHP} in schema 3.0 must set runtime_type=dynamic"
+    while IFS= read -r ext; do
+      NAME="$(jq -r 'if type == "string" then . else .name // empty end' <<<"${ext}")"
+      TYPE="$(jq -r 'if type == "string" then "extension" else .type // "extension" end' <<<"${ext}")"
+      FILE="$(jq -r 'if type == "string" then empty else .file // empty end' <<<"${ext}")"
+      [[ -n "${NAME}" ]] || fail "runtime ${PHP} has extension with empty name"
+      [[ "${TYPE}" == "extension" || "${TYPE}" == "zend_extension" ]] \
+        || fail "runtime ${PHP} extension ${NAME} has invalid type ${TYPE}"
+      [[ -n "${FILE}" ]] || fail "runtime ${PHP} extension ${NAME} is missing file"
+    done < <(jq -c '.extensions[]' <<<"${entry}")
   fi
 
   if [[ ! "${PHP}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -137,7 +155,7 @@ while IFS= read -r entry; do
 done < <(jq -c '.runtimes[]' "${MANIFEST}")
 
 # Profile names must be non-empty; profile extensions must exist in the catalog runtime set.
-CATALOG_EXTENSIONS="$(jq -r '.runtimes[0].extensions[]' "${MANIFEST}")"
+CATALOG_EXTENSIONS="$(jq -r '.runtimes[0].extensions[] | if type == "string" then . else .name end' "${MANIFEST}")"
 while IFS= read -r profile; do
   PROFILE_NAME="$(jq -r '.name' <<<"${profile}")"
   [[ -n "${PROFILE_NAME}" ]] || fail "profile has empty name"
