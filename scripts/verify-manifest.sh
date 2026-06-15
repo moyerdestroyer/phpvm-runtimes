@@ -59,7 +59,11 @@ RUNTIME_COUNT="$(jq '.runtimes | length' "${MANIFEST}")"
 
 EXPECTED_EXTENSIONS=""
 if [[ -f "${EXTENSIONS_JSON}" ]]; then
-  EXPECTED_EXTENSIONS="$(jq -r '.catalog | sort | @tsv' "${EXTENSIONS_JSON}")"
+  if [[ "${SCHEMA}" == "3.0" ]]; then
+    EXPECTED_EXTENSIONS="$(jq -r '.dynamic_catalog | sort | @tsv' "${EXTENSIONS_JSON}")"
+  else
+    EXPECTED_EXTENSIONS="$(jq -r '.catalog | sort | @tsv' "${EXTENSIONS_JSON}")"
+  fi
 fi
 
 EXPECTED_COMPOSER=""

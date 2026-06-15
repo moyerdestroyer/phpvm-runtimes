@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inject release URLs and SHA-256 checksums into manifest.json."""
+"""Inject release URLs, SHA-256 checksums, and runtime metadata into manifest.json."""
 
 from __future__ import annotations
 
@@ -8,15 +8,18 @@ import hashlib
 import json
 import re
 import sys
+import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 TARGETS = (
     "x86_64-unknown-linux-gnu",
     "aarch64-apple-darwin",
 )
 
-PLACEHOLDER_SHA = "0" * 64
+ZEND_EXTENSIONS = frozenset({"opcache", "xdebug"})
+DEFAULT_EXTENSIONS = frozenset({"openssl", "phar", "mbstring"})
 ARCHIVE_RE = re.compile(r"^php-(?P<version>\d+\.\d+\.\d+)-(?P<target>.+)\.tar\.gz$")
 
 
@@ -44,6 +47,38 @@ def release_url(github_repo: str, catalog_tag: str, filename: str) -> str:
         f"https://github.com/{github_repo}/releases/download/"
         f"{catalog_tag}/{filename}"
     )
+
+
+def inspect_dynamic_archive(archive: Path) -> tuple[dict, list[dict]]:
+    with TemporaryDirectory() as tmp:
+        with tarfile.open(archive, "r:gz") as tar:
+            tar.extractall(tmp, filter="data")
+
+        root = next(Path(tmp).iterdir())
+        metadata_path = root / "metadata" / "runtime.json"
+        ext_dir = root / "ext"
+        if not metadata_path.is_file() or not ext_dir.is_dir():
+            raise ValueError(f"{archive.name} is not a dynamic runtime bundle")
+
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        extensions: list[dict] = []
+        for ext_file in sorted(ext_dir.glob("*.so")) + sorted(ext_dir.glob("*.dylib")):
+            name = ext_file.stem
+            ext_type = "zend_extension" if name in ZEND_EXTENSIONS else "extension"
+            extensions.append(
+                {
+                    "name": name,
+                    "type": ext_type,
+                    "bundled": True,
+                    "default": name in DEFAULT_EXTENSIONS,
+                    "file": f"ext/{ext_file.name}",
+                }
+            )
+
+        if not extensions:
+            raise ValueError(f"{archive.name} has no loadable extensions")
+
+        return metadata, extensions
 
 
 def main() -> int:
@@ -94,7 +129,6 @@ def main() -> int:
         return 1
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
-    manifest["schema"] = "2.1"
     manifest["catalog_tag"] = args.catalog_tag
     manifest["published_at"] = args.published_at or datetime.now(timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
@@ -103,12 +137,14 @@ def main() -> int:
     runtimes = manifest.get("runtimes", [])
     expected = len(runtimes) * len(TARGETS)
     updated = 0
+    dynamic = False
 
     for runtime in runtimes:
         php = runtime.get("php", "")
         if not php:
             print("error: runtime row missing php version", file=sys.stderr)
             return 1
+
         artifacts = runtime.setdefault("artifacts", {})
         for target in TARGETS:
             key = (php, target)
@@ -127,6 +163,32 @@ def main() -> int:
             updated += 1
             print(f"updated {php} / {target} <- {archive.name}")
 
+        linux_archive = assets.get((php, "x86_64-unknown-linux-gnu"))
+        if linux_archive is None:
+            print(
+                f"error: missing Linux tarball for runtime metadata: {php}",
+                file=sys.stderr,
+            )
+            return 1
+
+        try:
+            metadata, extensions = inspect_dynamic_archive(linux_archive)
+        except ValueError as exc:
+            runtime["runtime_type"] = "static"
+            runtime["extensions"] = runtime.get("extensions", [])
+            continue
+
+        dynamic = True
+        runtime["runtime_type"] = metadata.get("runtime_type", "dynamic")
+        runtime["thread_safety"] = metadata.get("thread_safety", "nts")
+        runtime["abi"] = metadata["abi"]
+        runtime["extension_api"] = metadata["extension_api"]
+        runtime["zend_extension_api"] = metadata["zend_extension_api"]
+        runtime["extensions"] = extensions
+        print(f"updated {php} runtime metadata from {linux_archive.name}")
+
+    manifest["schema"] = "3.0" if dynamic else "2.1"
+
     if updated != expected:
         print(
             f"error: updated {updated} of {expected} required artifacts",
@@ -139,7 +201,9 @@ def main() -> int:
         print(output)
     else:
         args.manifest.write_text(output, encoding="utf-8")
-        print(f"wrote {args.manifest} ({updated} artifacts)")
+        print(
+            f"wrote {args.manifest} ({updated} artifacts, schema {manifest['schema']})"
+        )
 
     return 0
 
