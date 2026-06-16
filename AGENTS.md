@@ -2,7 +2,7 @@
 
 ## Before publishing a catalog
 
-- [ ] phpvm supports manifest v2.1 `artifacts` (per-platform download URLs)
+- [ ] phpvm supports manifest v2.1 or v3.0 `artifacts` (per-platform download URLs)
 - [ ] All **8** tarballs built and smoke-tested (`bin/php -v`, `bin/composer -V`, `php -m`)
 - [ ] `builds/common/extensions.json` "catalog" lists all common extensions (so they appear in the manifest "dev" profile and pass profile validation in verify-manifest)
 - [ ] Extension lists in `manifest.json` match every platform build (and the catalog)
@@ -53,7 +53,7 @@ scripts/verify-manifest.sh --strict
 | `build-catalog.yml` | Manual: build all 8 catalog tarballs (static via SPC for both platforms) |
 | `publish-catalog.yml` | Manual: attach artifacts + `manifest.json` to a catalog release |
 
-**Build split:** Linux x86_64 tarballs are built locally on this machine. Apple Silicon tarballs are produced by the GitHub Actions `build-*` workflows (the reusable job now uses the static `spc-macos-aarch64` path for `aarch64-apple-darwin`). The old `build-apple-dynamic.yml` is legacy and no longer used for catalogs.
+**Build split:** Linux x86_64 tarballs are built locally on this machine. Apple Silicon tarballs are produced by the GitHub Actions `build-*` workflows (the reusable job now uses the static `spc-macos-aarch64` path for `aarch64-apple-darwin`). Legacy dynamic build scripts and `build-apple-dynamic.yml` have been removed.
 
 ## Catalog rotation
 

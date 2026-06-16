@@ -55,16 +55,12 @@ phpvm-runtimes/
 │   └── …
 │
 ├── scripts/
-│   ├── build-runtime-local.sh    # Build/package one host runtime end-to-end
-│   ├── build-dynamic-runtime-local.sh # Build/package one host dynamic runtime
-│   ├── build-dynamic-php.sh      # Stage one shared-extension PHP CLI runtime
-│   ├── bundle-dynamic-libs.sh    # Vendor non-system shared libraries for dynamic runtimes
-│   ├── write-dynamic-runtime-metadata.py # Write profiles, glibc, and license metadata
+│   ├── build-runtime-local.sh    # Build/package one host runtime end-to-end (static via SPC)
 │   ├── prepare-catalog.sh        # Update manifest from a complete asset set
-│   ├── package-runtime.sh        # Validate tree → tar.gz + sha256
+│   ├── package-runtime.sh        # Validate tree → tar.gz + sha256 (static)
 │   ├── update-manifest.py        # Inject urls/checksums into manifest.json
 │   ├── verify-manifest.sh        # Schema + HTTPS + 64-char sha256
-│   ├── verify-dynamic-runtime.sh # Smoke-test loadable extension bundles
+│   ├── verify-extensions.sh      # Smoke-test static build (php -m catalog match)
 │   └── verify-manifest-assets.sh # Tarball bytes vs manifest sha256
 │
 └── .github/
