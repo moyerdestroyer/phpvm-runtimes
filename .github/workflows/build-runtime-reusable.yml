@@ -1,4 +1,4 @@
-# Reusable job: build, package, and verify one runtime tarball.
+# Reusable job: build, package, and verify one *static* runtime tarball (SPC for both Linux and macOS).
 on:
   workflow_call:
     inputs:
@@ -31,7 +31,7 @@ jobs:
               echo "SPC_ASSET=spc-linux-x86_64" >> "${GITHUB_ENV}"
               ;;
             aarch64-apple-darwin)
-              echo "BUILD_MODE=dynamic" >> "${GITHUB_ENV}"
+              echo "SPC_ASSET=spc-macos-aarch64" >> "${GITHUB_ENV}"
               ;;
             *)
               echo "error: unsupported target: ${{ inputs.target }}" >&2
@@ -54,66 +54,26 @@ jobs:
           brew update
           brew install \
             autoconf \
+            automake \
             bison \
+            cmake \
             curl \
-            freetype \
-            icu4c \
-            jpeg-turbo \
             jq \
-            libiconv \
-            libpng \
-            libxml2 \
-            libzip \
-            oniguruma \
-            openssl@3 \
+            libtool \
             pkg-config \
-            re2c \
-            sqlite \
-            webp \
-            zlib
+            re2c
 
           echo "$(brew --prefix bison)/bin" >> "${GITHUB_PATH}"
           echo "$(brew --prefix curl)/bin" >> "${GITHUB_PATH}"
 
-          pkg_config_path=""
-          for formula in \
-            openssl@3 \
-            zlib \
-            curl \
-            sqlite \
-            icu4c \
-            oniguruma \
-            libzip \
-            libiconv \
-            libpng \
-            jpeg-turbo \
-            webp \
-            freetype \
-            libxml2
-          do
-            prefix="$(brew --prefix "${formula}")"
-            for dir in "${prefix}/lib/pkgconfig" "${prefix}/share/pkgconfig"; do
-              if [[ -d "${dir}" ]]; then
-                if [[ -n "${pkg_config_path}" ]]; then
-                  pkg_config_path="${pkg_config_path}:${dir}"
-                else
-                  pkg_config_path="${dir}"
-                fi
-              fi
-            done
-          done
-
           {
-            echo "PKG_CONFIG_PATH=${pkg_config_path}"
             echo "PHPVM_BUILD_JOBS=$(sysctl -n hw.ncpu)"
           } >> "${GITHUB_ENV}"
 
       - name: Download pinned StaticPHP (spc)
-        if: inputs.target == 'x86_64-unknown-linux-gnu'
         run: scripts/download-spc.sh "${SPC_ASSET}" "${{ github.workspace }}/spc"
 
       - name: Build static PHP
-        if: inputs.target == 'x86_64-unknown-linux-gnu'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SPC_BIN: ${{ github.workspace }}/spc
@@ -122,23 +82,13 @@ jobs:
         run: scripts/build-static-php.sh
 
       - name: Stage runtime tree
-        if: inputs.target == 'x86_64-unknown-linux-gnu'
         run: |
           STAGING="${RUNNER_TEMP}/runtime-staging"
           mkdir -p "${STAGING}/bin"
           cp "builds/${{ inputs.php_version }}/buildroot/bin/php" "${STAGING}/bin/php"
           scripts/install-composer.sh "${STAGING}"
 
-      - name: Build dynamic Apple runtime
-        if: inputs.target == 'aarch64-apple-darwin'
-        run: |
-          scripts/build-dynamic-runtime-local.sh \
-            "${{ inputs.php_version }}" \
-            "${{ inputs.target }}" \
-            dist
-
       - name: Package tarball
-        if: inputs.target == 'x86_64-unknown-linux-gnu'
         run: |
           mkdir -p dist
           scripts/package-runtime.sh \

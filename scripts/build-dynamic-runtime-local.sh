@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build, stage, smoke-test, and package one dynamic runtime for the current host.
+# (Legacy) Build a dynamic runtime bundle. Not used for standard catalog releases.
+# The project uses static binaries via build-runtime-local.sh + SPC.
 #
 # Usage:
 #   build-dynamic-runtime-local.sh <php-version> [target] [output-dir]

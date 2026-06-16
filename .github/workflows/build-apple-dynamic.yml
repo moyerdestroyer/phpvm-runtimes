@@ -1,9 +1,8 @@
-# Build dynamic macOS Apple Silicon runtime tarballs.
+# (Legacy) Build dynamic macOS Apple Silicon runtime tarballs.
 #
-# Linux dynamic runtime tarballs are normally built locally with
-# scripts/build-dynamic-runtime-local.sh and then combined with these artifacts
-# before preparing a catalog.
-name: build-apple-dynamic
+# The catalog now uses static builds for all platforms via the reusable workflow
+# and build-runtime-local.sh / build-catalog.yml. This file is kept for reference.
+name: build-apple-dynamic (legacy)
 
 on:
   workflow_dispatch:

@@ -1,39 +1,72 @@
 {
   "schema": "3.0",
-  "published_at": "2026-06-15T17:35:56Z",
+  "published_at": "2026-06-16T03:33:48Z",
   "catalog_tag": "catalog-2026-06-15",
   "profiles": [
     {
-      "name": "wordpress",
+      "name": "minimal",
       "extensions": [
+        "openssl",
+        "phar",
+        "mbstring"
+      ]
+    },
+    {
+      "name": "dev",
+      "extensions": [
+        "openssl",
+        "phar",
+        "mbstring",
         "curl",
         "dom",
+        "fileinfo",
         "gd",
         "intl",
-        "mbstring",
         "mysqli",
-        "openssl",
+        "pdo",
         "pdo_mysql",
-        "xml",
-        "zip"
-      ]
-    },
-    {
-      "name": "laravel",
-      "extensions": [
-        "curl",
-        "intl",
-        "mbstring",
-        "openssl",
-        "pdo_mysql",
+        "pdo_sqlite",
+        "session",
+        "simplexml",
+        "sockets",
+        "sqlite3",
         "tokenizer",
         "xml",
-        "zip"
+        "xmlreader",
+        "xmlwriter",
+        "zip",
+        "zlib"
       ]
     },
     {
-      "name": "minimal",
-      "extensions": []
+      "name": "debug",
+      "extensions": [
+        "openssl",
+        "phar",
+        "mbstring",
+        "curl",
+        "dom",
+        "fileinfo",
+        "gd",
+        "intl",
+        "mysqli",
+        "pdo",
+        "pdo_mysql",
+        "pdo_sqlite",
+        "session",
+        "simplexml",
+        "sockets",
+        "sqlite3",
+        "tokenizer",
+        "xml",
+        "xmlreader",
+        "xmlwriter",
+        "zip",
+        "zlib"
+      ],
+      "zend_extensions": [
+        "xdebug"
+      ]
     }
   ],
   "runtimes": [
@@ -45,28 +78,28 @@
           "name": "curl",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/curl.so"
         },
         {
           "name": "dom",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/dom.so"
         },
         {
           "name": "fileinfo",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/fileinfo.so"
         },
         {
           "name": "gd",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/gd.so"
         },
         {
@@ -80,7 +113,7 @@
           "name": "intl",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/intl.so"
         },
         {
@@ -94,7 +127,7 @@
           "name": "mysqli",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/mysqli.so"
         },
         {
@@ -115,21 +148,21 @@
           "name": "pdo",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo.so"
         },
         {
           "name": "pdo_mysql",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo_mysql.so"
         },
         {
           "name": "pdo_sqlite",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo_sqlite.so"
         },
         {
@@ -143,14 +176,14 @@
           "name": "session",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/session.so"
         },
         {
           "name": "simplexml",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/simplexml.so"
         },
         {
@@ -164,21 +197,21 @@
           "name": "sockets",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/sockets.so"
         },
         {
           "name": "sqlite3",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/sqlite3.so"
         },
         {
           "name": "tokenizer",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/tokenizer.so"
         },
         {
@@ -192,42 +225,42 @@
           "name": "xml",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xml.so"
         },
         {
           "name": "xmlreader",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xmlreader.so"
         },
         {
           "name": "xmlwriter",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xmlwriter.so"
         },
         {
           "name": "zip",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/zip.so"
         },
         {
           "name": "zlib",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/zlib.so"
         }
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
           "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-15/php-8.1.34-x86_64-unknown-linux-gnu.tar.gz",
-          "sha256": "d9364617f5f72732faf584fc34a2b497f83fd53cbf5cc669d60d638c6688d8db"
+          "sha256": "c5cc37ec39d5221d1ac5512168e990810461c6bb2ffad4f166c177e0be0d0968"
         },
         "aarch64-apple-darwin": {
           "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-15/php-8.1.34-aarch64-apple-darwin.tar.gz",
@@ -238,7 +271,12 @@
       "thread_safety": "nts",
       "abi": "20210902",
       "extension_api": "20210902",
-      "zend_extension_api": "420210902"
+      "zend_extension_api": "420210902",
+      "default_profile": "dev",
+      "linux_compatibility": {
+        "builder_glibc": "2.39",
+        "required_glibc": "2.38"
+      }
     },
     {
       "php": "8.2.31",
@@ -248,28 +286,28 @@
           "name": "curl",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/curl.so"
         },
         {
           "name": "dom",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/dom.so"
         },
         {
           "name": "fileinfo",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/fileinfo.so"
         },
         {
           "name": "gd",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/gd.so"
         },
         {
@@ -283,7 +321,7 @@
           "name": "intl",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/intl.so"
         },
         {
@@ -297,7 +335,7 @@
           "name": "mysqli",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/mysqli.so"
         },
         {
@@ -318,21 +356,21 @@
           "name": "pdo",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo.so"
         },
         {
           "name": "pdo_mysql",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo_mysql.so"
         },
         {
           "name": "pdo_sqlite",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo_sqlite.so"
         },
         {
@@ -346,14 +384,14 @@
           "name": "session",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/session.so"
         },
         {
           "name": "simplexml",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/simplexml.so"
         },
         {
@@ -367,21 +405,21 @@
           "name": "sockets",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/sockets.so"
         },
         {
           "name": "sqlite3",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/sqlite3.so"
         },
         {
           "name": "tokenizer",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/tokenizer.so"
         },
         {
@@ -395,42 +433,42 @@
           "name": "xml",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xml.so"
         },
         {
           "name": "xmlreader",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xmlreader.so"
         },
         {
           "name": "xmlwriter",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xmlwriter.so"
         },
         {
           "name": "zip",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/zip.so"
         },
         {
           "name": "zlib",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/zlib.so"
         }
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
           "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-15/php-8.2.31-x86_64-unknown-linux-gnu.tar.gz",
-          "sha256": "469b54cb0e100fffb25c62d2989153c5667204da370bb5ffdebad07adb4ac6c4"
+          "sha256": "9f70a4d4d06add374b0da51a97f157d84b4cba9807a77f8dbaa74992ccf653d0"
         },
         "aarch64-apple-darwin": {
           "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-15/php-8.2.31-aarch64-apple-darwin.tar.gz",
@@ -441,7 +479,12 @@
       "thread_safety": "nts",
       "abi": "20220829",
       "extension_api": "20220829",
-      "zend_extension_api": "420220829"
+      "zend_extension_api": "420220829",
+      "default_profile": "dev",
+      "linux_compatibility": {
+        "builder_glibc": "2.39",
+        "required_glibc": "2.38"
+      }
     },
     {
       "php": "8.3.31",
@@ -451,28 +494,28 @@
           "name": "curl",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/curl.so"
         },
         {
           "name": "dom",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/dom.so"
         },
         {
           "name": "fileinfo",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/fileinfo.so"
         },
         {
           "name": "gd",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/gd.so"
         },
         {
@@ -486,7 +529,7 @@
           "name": "intl",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/intl.so"
         },
         {
@@ -500,7 +543,7 @@
           "name": "mysqli",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/mysqli.so"
         },
         {
@@ -521,21 +564,21 @@
           "name": "pdo",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo.so"
         },
         {
           "name": "pdo_mysql",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo_mysql.so"
         },
         {
           "name": "pdo_sqlite",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo_sqlite.so"
         },
         {
@@ -549,14 +592,14 @@
           "name": "session",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/session.so"
         },
         {
           "name": "simplexml",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/simplexml.so"
         },
         {
@@ -570,21 +613,21 @@
           "name": "sockets",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/sockets.so"
         },
         {
           "name": "sqlite3",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/sqlite3.so"
         },
         {
           "name": "tokenizer",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/tokenizer.so"
         },
         {
@@ -598,42 +641,42 @@
           "name": "xml",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xml.so"
         },
         {
           "name": "xmlreader",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xmlreader.so"
         },
         {
           "name": "xmlwriter",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xmlwriter.so"
         },
         {
           "name": "zip",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/zip.so"
         },
         {
           "name": "zlib",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/zlib.so"
         }
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
           "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-15/php-8.3.31-x86_64-unknown-linux-gnu.tar.gz",
-          "sha256": "ee756bcf952fc39b41f1e06abbe2c63154924612a42f04b342bd2028d86b0032"
+          "sha256": "4c166e75f5f570bfb281bde6ed584af19670b1d3f33e2fb1382e2ba838c40e87"
         },
         "aarch64-apple-darwin": {
           "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-15/php-8.3.31-aarch64-apple-darwin.tar.gz",
@@ -644,7 +687,12 @@
       "thread_safety": "nts",
       "abi": "20230831",
       "extension_api": "20230831",
-      "zend_extension_api": "420230831"
+      "zend_extension_api": "420230831",
+      "default_profile": "dev",
+      "linux_compatibility": {
+        "builder_glibc": "2.39",
+        "required_glibc": "2.38"
+      }
     },
     {
       "php": "8.4.22",
@@ -654,28 +702,28 @@
           "name": "curl",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/curl.so"
         },
         {
           "name": "dom",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/dom.so"
         },
         {
           "name": "fileinfo",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/fileinfo.so"
         },
         {
           "name": "gd",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/gd.so"
         },
         {
@@ -689,7 +737,7 @@
           "name": "intl",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/intl.so"
         },
         {
@@ -703,7 +751,7 @@
           "name": "mysqli",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/mysqli.so"
         },
         {
@@ -724,21 +772,21 @@
           "name": "pdo",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo.so"
         },
         {
           "name": "pdo_mysql",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo_mysql.so"
         },
         {
           "name": "pdo_sqlite",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/pdo_sqlite.so"
         },
         {
@@ -752,14 +800,14 @@
           "name": "session",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/session.so"
         },
         {
           "name": "simplexml",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/simplexml.so"
         },
         {
@@ -773,21 +821,21 @@
           "name": "sockets",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/sockets.so"
         },
         {
           "name": "sqlite3",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/sqlite3.so"
         },
         {
           "name": "tokenizer",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/tokenizer.so"
         },
         {
@@ -801,42 +849,42 @@
           "name": "xml",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xml.so"
         },
         {
           "name": "xmlreader",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xmlreader.so"
         },
         {
           "name": "xmlwriter",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/xmlwriter.so"
         },
         {
           "name": "zip",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/zip.so"
         },
         {
           "name": "zlib",
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/zlib.so"
         }
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
           "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-15/php-8.4.22-x86_64-unknown-linux-gnu.tar.gz",
-          "sha256": "33fbcdf47fa3c545846fb50b8bf670a50b8c2352685f50b8be134592093d3ba3"
+          "sha256": "9453aa4f866f702755dd7a3e2368fc8f19b3744227b8696819e246b09a175771"
         },
         "aarch64-apple-darwin": {
           "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-15/php-8.4.22-aarch64-apple-darwin.tar.gz",
@@ -847,7 +895,13 @@
       "thread_safety": "nts",
       "abi": "20240924",
       "extension_api": "20240924",
-      "zend_extension_api": "420240924"
+      "zend_extension_api": "420240924",
+      "default_profile": "dev",
+      "linux_compatibility": {
+        "builder_glibc": "2.39",
+        "required_glibc": "2.38"
+      }
     }
-  ]
+  ],
+  "default_profile": "dev"
 }

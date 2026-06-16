@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install distro packages needed for StaticPHP builds on Debian/Ubuntu/Mint.
+# Install distro packages needed for runtime builds on Debian/Ubuntu/Mint.
 # musl-wrapper is still installed by spc doctor (requires sudo).
 set -euo pipefail
 
@@ -19,7 +19,7 @@ sudo apt-get install -y \
   make bison re2c flex gperf \
   git autoconf automake autopoint \
   tar unzip gzip gcc g++ \
-  bzip2 cmake patch xz-utils libtool debianutils \
-  pkg-config curl ca-certificates jq
+  bzip2 cmake patch xz-utils libtool debianutils binutils \
+  pkg-config curl ca-certificates jq patchelf
 
 echo "linux build deps installed"

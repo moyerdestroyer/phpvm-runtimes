@@ -19,7 +19,38 @@ TARGETS = (
 )
 
 ZEND_EXTENSIONS = frozenset({"opcache", "xdebug"})
-DEFAULT_EXTENSIONS = frozenset({"openssl", "phar", "mbstring"})
+DEFAULT_PROFILE = "dev"
+MINIMAL_EXTENSIONS = ["openssl", "phar", "mbstring"]
+DEV_EXTENSIONS = [
+    "openssl",
+    "phar",
+    "mbstring",
+    "curl",
+    "dom",
+    "fileinfo",
+    "gd",
+    "intl",
+    "mysqli",
+    "pdo",
+    "pdo_mysql",
+    "pdo_sqlite",
+    "session",
+    "simplexml",
+    "sockets",
+    "sqlite3",
+    "tokenizer",
+    "xml",
+    "xmlreader",
+    "xmlwriter",
+    "zip",
+    "zlib",
+]
+PROFILES = [
+    {"name": "minimal", "extensions": MINIMAL_EXTENSIONS},
+    {"name": "dev", "extensions": DEV_EXTENSIONS},
+    {"name": "debug", "extensions": DEV_EXTENSIONS, "zend_extensions": ["xdebug"]},
+]
+DEFAULT_EXTENSIONS = frozenset(DEV_EXTENSIONS)
 ARCHIVE_RE = re.compile(r"^php-(?P<version>\d+\.\d+\.\d+)-(?P<target>.+)\.tar\.gz$")
 
 
@@ -56,11 +87,14 @@ def inspect_dynamic_archive(archive: Path) -> tuple[dict, list[dict]]:
 
         root = next(Path(tmp).iterdir())
         metadata_path = root / "metadata" / "runtime.json"
+        profiles_path = root / "etc" / "profiles" / "profiles.json"
         ext_dir = root / "ext"
         if not metadata_path.is_file() or not ext_dir.is_dir():
             raise ValueError(f"{archive.name} is not a dynamic runtime bundle")
 
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if profiles_path.is_file():
+            metadata["profiles"] = json.loads(profiles_path.read_text(encoding="utf-8"))
         extensions: list[dict] = []
         for ext_file in sorted(ext_dir.glob("*.so")) + sorted(ext_dir.glob("*.dylib")):
             name = ext_file.stem
@@ -133,6 +167,8 @@ def main() -> int:
     manifest["published_at"] = args.published_at or datetime.now(timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
+    manifest["default_profile"] = DEFAULT_PROFILE
+    manifest["profiles"] = PROFILES
 
     runtimes = manifest.get("runtimes", [])
     expected = len(runtimes) * len(TARGETS)
@@ -184,6 +220,9 @@ def main() -> int:
         runtime["abi"] = metadata["abi"]
         runtime["extension_api"] = metadata["extension_api"]
         runtime["zend_extension_api"] = metadata["zend_extension_api"]
+        runtime["default_profile"] = metadata.get("default_profile", DEFAULT_PROFILE)
+        if "linux_compatibility" in metadata:
+            runtime["linux_compatibility"] = metadata["linux_compatibility"]
         runtime["extensions"] = extensions
         print(f"updated {php} runtime metadata from {linux_archive.name}")
 

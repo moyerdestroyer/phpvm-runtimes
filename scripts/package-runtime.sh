@@ -36,7 +36,7 @@ for bin in php composer; do
 done
 
 # Smoke test PHP before packaging. Static builds must expose every catalog
-# extension through php -m; dynamic builds verify loadable files separately.
+# extension through php -m. (Dynamic verification paths are legacy.)
 "${STAGING}/bin/php" -v >/dev/null
 if [[ -d "${STAGING}/ext" ]]; then
   PHPRC="${STAGING}/etc" PHP_INI_SCAN_DIR="${STAGING}/etc/conf.d" "${STAGING}/bin/composer" -V >/dev/null
@@ -60,11 +60,14 @@ if [[ -f "${STAGING}/bin/composer.phar" ]]; then
 fi
 
 # Copy optional runtime deps and dynamic bundle directories without following external symlinks.
-for dir in ext etc lib include metadata; do
+for dir in ext etc lib include metadata licenses; do
   if [[ -d "${STAGING}/${dir}" ]]; then
     cp -a "${STAGING}/${dir}" "${PACK_ROOT}/"
   fi
 done
+if [[ -f "${STAGING}/THIRD_PARTY_NOTICES" ]]; then
+  cp -a "${STAGING}/THIRD_PARTY_NOTICES" "${PACK_ROOT}/"
+fi
 
 if [[ -d "${PACK_ROOT}/ext" ]]; then
   mkdir -p "${PACK_ROOT}/etc/conf.d"

@@ -2,7 +2,7 @@
 
 This document defines the **phpvm-runtimes** companion repository: how to lay out builds, name release assets, and publish `manifest.json` so the [phpvm](https://github.com/moyerdestroyer/phpvm) CLI can install PHP on **Linux x86_64** and **macOS Apple Silicon**.
 
-The current published catalog uses manifest v2.1 static runtimes. New extension-management work should target manifest v3.0 dynamic runtime bundles with a PHP ZIP-style `ext/` directory and `etc/conf.d/` scan directory.
+Runtimes are static PHP+Composer binaries (manifest v2.1 `artifacts`). The `dev` profile in the manifest (and top-level profiles) must include common extensions so that phpvm's default experience is rich.
 
 The **phpvm** repo ships the CLI. **phpvm-runtimes** ships PHP+Composer trees and the manifest. Do not mix the two in one GitHub Release.
 
@@ -30,7 +30,7 @@ Must match phpvm’s installer and runtime resolution (same strings as `install.
 
 | Target | OS / CPU |
 |---|---|
-| `x86_64-unknown-linux-gnu` | Linux x86_64 (glibc; built on Ubuntu 22.04+ class runners) |
+| `x86_64-unknown-linux-gnu` | Linux x86_64 (glibc; required glibc is recorded per artifact) |
 | `aarch64-apple-darwin` | macOS Apple Silicon |
 
 **Not in v1 catalog:** macOS Intel (`x86_64-apple-darwin`), Linux ARM64 (`aarch64-unknown-linux-gnu`), Windows.
@@ -58,6 +58,8 @@ phpvm-runtimes/
 │   ├── build-runtime-local.sh    # Build/package one host runtime end-to-end
 │   ├── build-dynamic-runtime-local.sh # Build/package one host dynamic runtime
 │   ├── build-dynamic-php.sh      # Stage one shared-extension PHP CLI runtime
+│   ├── bundle-dynamic-libs.sh    # Vendor non-system shared libraries for dynamic runtimes
+│   ├── write-dynamic-runtime-metadata.py # Write profiles, glibc, and license metadata
 │   ├── prepare-catalog.sh        # Update manifest from a complete asset set
 │   ├── package-runtime.sh        # Validate tree → tar.gz + sha256
 │   ├── update-manifest.py        # Inject urls/checksums into manifest.json
@@ -79,40 +81,22 @@ phpvm-runtimes/
 
 ## Runtime tarball layout
 
-Each archive is a **gzip tarball** with a **single top-level directory** (stripped on extract by phpvm). Static v2.1 archives require:
+Each archive is a **gzip tarball** with a **single top-level directory** (stripped on extract by phpvm). Static archives contain:
 
 ```text
 php-8.3.23-x86_64-unknown-linux-gnu/    # top-level dir (any single segment name is fine)
 └── bin/
-    ├── php                             # executable
+    ├── php                             # static executable (common extensions compiled in)
     ├── composer                        # executable wrapper
     └── composer.phar                   # Composer PHAR used by the wrapper
 ```
 
-Dynamic v3.0 archives should include:
-
-```text
-php-8.4.22-x86_64-unknown-linux-gnu/
-├── bin/
-│   ├── php
-│   ├── composer
-│   └── composer.phar
-├── ext/                 # loadable extensions
-├── etc/
-│   ├── php.ini          # base config
-│   ├── conf.d/          # generated profile/extension snippets
-│   └── profiles/        # optional runtime-local presets
-├── lib/                 # shared library deps when needed
-└── include/php/         # optional for future phpize/source-build support
-```
-
-phpvm sets `PHPRC` to `etc/` and `PHP_INI_SCAN_DIR` to `etc/conf.d`. Profiles and `phpvm ext` commands write generated snippets to `etc/conf.d`; they do not replace the base `php.ini`. Dynamic release archives should be scrubbed of build-machine absolute paths because phpvm refreshes `extension_dir` and required default extension snippets after extraction.
+The manifest profiles document the expected `dev` set (see "ensure common extensions wind up in the dev profile"). No `ext/`, `lib/`, or runtime `etc/` tree is required in the tarball for static.
 
 ### Packaging rules
 
 - Format: `.tar.gz`
 - Root contains `bin/php`, `bin/composer`, `bin/composer.phar`
-- Dynamic roots include `ext/`, `etc/`, and bundled runtime deps such as `lib/`
 - No symlinks pointing outside the archive (phpvm rejects unsafe tar entries)
 - Run `package-runtime.sh` to produce **sidecar checksum**:
 
@@ -171,7 +155,7 @@ manifest_url = "https://raw.githubusercontent.com/<org>/phpvm-runtimes/master/ma
 
 ## Manifest schema (v2.1 — per-platform artifacts)
 
-Manifest v2 in phpvm assumed **one URL per PHP version**. Multi-platform catalogs need an **`artifacts`** map keyed by target triple.
+Manifest v2.1 uses an **`artifacts`** map keyed by target triple for multi-platform catalogs. Static catalogs use simple string arrays for `extensions` (matching the `catalog` list from `builds/common/extensions.json`, which must include all common extensions referenced by the `dev` profile).
 
 ### Top-level shape
 
@@ -180,33 +164,30 @@ Manifest v2 in phpvm assumed **one URL per PHP version**. Multi-platform catalog
   "schema": "2.1",
   "published_at": "2025-06-12T00:00:00Z",
   "catalog_tag": "catalog-2025-06-12",
+  "default_profile": "dev",
   "profiles": [ … ],
   "runtimes": [ … ]
 }
 ```
 
-- **`profiles`** — optional starter templates (extension lists). phpvm’s bundled `.ini` files take precedence; manifest templates are fallback seeding only.
-- **`runtimes`** — **exactly four entries**, one per supported minor line (latest patch).
+- **`profiles`** — starter templates (`minimal`, `dev`, `debug`). The `dev` profile must list common extensions.
+- **`runtimes`** — **exactly four entries**, one per supported minor line (latest patch). `extensions` is a simple array of names (or minimal objects for zend exts like xdebug to satisfy profile validation).
 
-### Runtime entry
+### Runtime entry (static)
 
 ```json
 {
   "php": "8.3.23",
   "composer": "2.9.2",
   "extensions": [
-    "curl", "dom", "gd", "intl", "mbstring", "mysqli", "openssl",
-    "pdo_mysql", "tokenizer", "xml", "zip"
+    "curl", "dom", "fileinfo", "gd", "intl", "mbstring", "mysqli", "openssl",
+    "pdo", "pdo_mysql", "pdo_sqlite", "phar", "session", "simplexml", "sockets",
+    "sqlite3", "tokenizer", "xml", "xmlreader", "xmlwriter", "zip", "zlib",
+    { "name": "xdebug", "type": "zend_extension", "bundled": true, "default": false }
   ],
   "artifacts": {
-    "x86_64-unknown-linux-gnu": {
-      "url": "https://github.com/.../php-8.3.23-x86_64-unknown-linux-gnu.tar.gz",
-      "sha256": "abcdef0123456789..."
-    },
-    "aarch64-apple-darwin": {
-      "url": "https://github.com/.../php-8.3.23-aarch64-apple-darwin.tar.gz",
-      "sha256": "..."
-    }
+    "x86_64-unknown-linux-gnu": { "url": "...", "sha256": "..." },
+    "aarch64-apple-darwin": { "url": "...", "sha256": "..." }
   }
 }
 ```
@@ -215,31 +196,17 @@ Manifest v2 in phpvm assumed **one URL per PHP version**. Multi-platform catalog
 |---|---|---|
 | `php` | yes | Exact semver `MAJOR.MINOR.PATCH` |
 | `composer` | yes | Bundled Composer version string |
-| `extensions` | yes | Full catalog compiled into **all** platform builds for this version (same list across targets) |
+| `extensions` | yes | Full catalog compiled into the static build (must match `builds/common/extensions.json` "catalog"; profiles reference these) |
 | `artifacts` | yes | Map of target triple → `{ url, sha256 }` |
-| `url` / `sha256` (top-level) | no | Legacy v2; do not use in new catalogs |
 
-## Manifest schema (v3.0 — dynamic extensions)
+## Legacy dynamic notes (v3.0)
 
-Manifest v3.0 keeps the v2.1 `artifacts` map and changes extension metadata from plain names to loadable descriptors:
+(The project has returned to static v2.1 binaries and simple manifest entries. Dynamic v3.0 support and examples were for an earlier experiment with loadable extensions and are no longer used for the catalog. `update-manifest.py` will emit schema 2.1 + `runtime_type: "static"` for static builds.)
 
-```json
-{
-  "schema": "3.0",
-  "runtimes": [
-    {
-      "php": "8.4.22",
-      "composer": "2.9.2",
-      "runtime_type": "dynamic",
-      "abi": "20240924",
-      "thread_safety": "nts",
-      "extension_api": "20240924",
-      "extensions": [
-        {
-          "name": "curl",
+Previous dynamic experiments used per-extension objects and `runtime_type: "dynamic"`. Do not use for new catalogs.
           "type": "extension",
           "bundled": true,
-          "default": false,
+          "default": true,
           "file": "ext/curl.so"
         },
         {
@@ -261,10 +228,13 @@ Manifest v3.0 keeps the v2.1 `artifacts` map and changes extension metadata from
 Rules:
 
 - `runtime_type` must be `dynamic`.
+- `default_profile` must be `dev`.
 - `extensions[].type` is `extension` or `zend_extension`.
 - `extensions[].file` is relative to the runtime root.
 - Profile extension names must exist in `extensions[].name`.
-- Extension files are bundled but disabled by default unless a profile or `phpvm ext enable` writes a snippet.
+- `minimal`, `dev`, and `debug` must exist in `profiles`; `debug` enables Xdebug as a Zend extension.
+- Linux dynamic runtimes record the build glibc and the highest required `GLIBC_*` symbol so phpvm can warn on older hosts.
+- Extension files are bundled but enabled only when a profile or `phpvm ext enable` writes a snippet. `default: true` means the extension is part of the default `dev` profile.
 
 ### phpvm consumer behavior (contract)
 
@@ -273,7 +243,7 @@ On `phpvm install <spec>`:
 1. Resolve specifier against manifest `runtimes[].php` (e.g. `8.3.latest` → `8.3.23`).
 2. Detect host target triple (same logic as `install.sh`).
 3. Select `artifacts[target]`.
-4. Download, verify `sha256`, extract, apply profile preset.
+4. Download, verify `sha256`, extract, apply the requested profile or `default_profile` (`dev`).
 
 If the host triple is missing from `artifacts`, fail with a clear error (e.g. Linux ARM not published).
 
@@ -286,16 +256,21 @@ If the host triple is missing from `artifacts`, fail with a clear error (e.g. Li
   "schema": "2.1",
   "published_at": "2025-06-12T00:00:00Z",
   "catalog_tag": "catalog-2025-06-12",
+  "default_profile": "dev",
   "profiles": [
     {
-      "name": "wordpress",
-      "extensions": ["curl", "dom", "gd", "intl", "mbstring", "mysqli", "openssl", "pdo_mysql", "xml", "zip"]
+      "name": "minimal",
+      "extensions": ["openssl", "phar", "mbstring"]
     },
     {
-      "name": "laravel",
-      "extensions": ["curl", "intl", "mbstring", "openssl", "pdo_mysql", "tokenizer", "xml", "zip"]
+      "name": "dev",
+      "extensions": ["openssl", "phar", "mbstring", "curl", "dom", "fileinfo", "gd", "intl", "mysqli", "pdo", "pdo_mysql", "pdo_sqlite", "session", "simplexml", "sockets", "sqlite3", "tokenizer", "xml", "xmlreader", "xmlwriter", "zip", "zlib"]
     },
-    { "name": "minimal", "extensions": [] }
+    {
+      "name": "debug",
+      "extensions": ["openssl", "phar", "mbstring", "curl", "dom", "fileinfo", "gd", "intl", "mysqli", "pdo", "pdo_mysql", "pdo_sqlite", "session", "simplexml", "sockets", "sqlite3", "tokenizer", "xml", "xmlreader", "xmlwriter", "zip", "zlib"],
+      "zend_extensions": ["xdebug"]
+    }
   ],
   "runtimes": [
     {
@@ -344,31 +319,31 @@ For each catalog publish, build **8 artifacts**:
 | 8.3.x (latest) | ✓ | ✓ |
 | 8.4.x (latest) | ✓ | ✓ |
 
-Suggested tooling: [static-php-cli](https://github.com/crazywhalecc/static-php-cli) with a shared extension set per PHP minor.
+Suggested tooling: [static-php-cli](https://github.com/crazywhalecc/static-php-cli) (SPC) via the `craft.yml` recipes. The `catalog` list in `extensions.json` (used for both verification and the `dev` profile) must be comprehensive.
 
 | Target | Where to build |
 |---|---|
-| `x86_64-unknown-linux-gnu` | Local Linux for dynamic catalogs |
-| `aarch64-apple-darwin` | GitHub Actions `build-apple-dynamic.yml` on `macos-26` |
+| `x86_64-unknown-linux-gnu` | Local (with setup-linux-build-deps.sh) or GitHub Actions ubuntu runner |
+| `aarch64-apple-darwin` | GitHub Actions `macos-26` runner (via the reusable workflow) |
 
-Document minimum OS/glibc/macOS versions in `phpvm-runtimes/README.md` (e.g. “Linux: glibc 2.35+”, “macOS 12+”).
+Document minimums in README. Static builds aim for broad glibc / macOS compatibility via SPC's vendored approach.
 
 ---
 
 ## Publish checklist
 
-1. **Build** changed Linux dynamic tarballs locally with `scripts/build-dynamic-runtime-local.sh`; build macOS Apple Silicon dynamic tarballs with `build-apple-dynamic.yml`.
-2. **Verify** each tarball: `bin/php -v`, `bin/composer -V`, `php -m` covers manifest `extensions`.
+1. **Build** changed tarballs (Linux locally via `build-runtime-local.sh` + deps setup, or use `build-catalog.yml` / `build-runtime.yml` Actions for the matrix). All use the static SPC path now.
+2. **Verify** each tarball: `bin/php -v`, `bin/composer -V`, `php -m` matches the catalog in `extensions.json` (via `verify-extensions.sh` inside packaging).
 3. **Stage** a complete 8-tarball asset set in `dist/`, reusing unchanged tarballs from the previous catalog when only one PHP line changed.
-4. **Run** `scripts/prepare-catalog.sh --catalog-tag catalog-YYYY-MM-DD`.
-5. **Confirm** `scripts/verify-manifest.sh --strict` and `scripts/verify-manifest-assets.sh dist` pass.
+4. **Run** `scripts/prepare-catalog.sh --catalog-tag catalog-YYYY-MM-DD` (it re-renders craft files and lets `update-manifest.py` produce schema 2.1 + static metadata + the rich profiles).
+5. **Confirm** `scripts/verify-manifest.sh --strict` and `scripts/verify-manifest-assets.sh dist` pass. (Profiles will be checked against the now-comprehensive catalog.)
 6. **Commit** `manifest.json` to the default branch (`master`) on phpvm-runtimes.
 7. **Create** GitHub Release `catalog-YYYY-MM-DD` with `publish-catalog.yml` (use the **same** `catalog_tag` as step 4) or upload manually; the workflow verifies tarball checksums match the committed manifest.
 8. **Smoke test** on each OS:
    ```bash
    phpvm install 8.3
    phpvm run 8.3 php -v
-   phpvm profile use wordpress
+   phpvm profile use debug
    phpvm doctor
    ```
 9. **Prune** previous catalog release assets if you need GitHub storage headroom (optional; old local installs unaffected).

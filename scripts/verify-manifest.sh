@@ -78,6 +78,11 @@ if [[ "${STRICT}" -eq 1 ]]; then
   [[ -n "${PUBLISHED}" && "${PUBLISHED}" != "null" ]] || fail "--strict: published_at must be set"
 fi
 
+DEFAULT_PROFILE="$(jq -r '.default_profile // empty' "${MANIFEST}")"
+if [[ "${SCHEMA}" == "3.0" ]]; then
+  [[ "${DEFAULT_PROFILE}" == "dev" ]] || fail "schema 3.0 default_profile must be dev"
+fi
+
 # Track minor lines — one runtime per major.minor.
 declare -A SEEN_MINOR=()
 
@@ -106,6 +111,9 @@ while IFS= read -r entry; do
   if [[ "${SCHEMA}" == "3.0" ]]; then
     [[ "${RUNTIME_TYPE}" == "dynamic" ]] \
       || fail "runtime ${PHP} in schema 3.0 must set runtime_type=dynamic"
+    RUNTIME_DEFAULT_PROFILE="$(jq -r '.default_profile // empty' <<<"${entry}")"
+    [[ "${RUNTIME_DEFAULT_PROFILE}" == "dev" ]] \
+      || fail "runtime ${PHP} default_profile must be dev"
     while IFS= read -r ext; do
       NAME="$(jq -r 'if type == "string" then . else .name // empty end' <<<"${ext}")"
       TYPE="$(jq -r 'if type == "string" then "extension" else .type // "extension" end' <<<"${ext}")"
@@ -160,6 +168,23 @@ done < <(jq -c '.runtimes[]' "${MANIFEST}")
 
 # Profile names must be non-empty; profile extensions must exist in the catalog runtime set.
 CATALOG_EXTENSIONS="$(jq -r '.runtimes[0].extensions[] | if type == "string" then . else .name end' "${MANIFEST}")"
+CATALOG_ZEND_EXTENSIONS="$(jq -r '.runtimes[0].extensions[] | select(type != "string" and .type == "zend_extension") | .name' "${MANIFEST}")"
+# For static builds, xdebug (and similar) may be declared in the "debug" profile as zend
+# even if not bundled in the catalog (SPC limitation for static). Allow them.
+if [[ -z "${CATALOG_ZEND_EXTENSIONS}" ]]; then
+  CATALOG_ZEND_EXTENSIONS=$'xdebug\nopcache'
+fi
+PROFILE_NAMES="$(jq -r '.profiles[]?.name' "${MANIFEST}")"
+if [[ "${SCHEMA}" == "3.0" ]]; then
+  for required_profile in minimal dev debug; do
+    if ! grep -Fxq "${required_profile}" <<<"${PROFILE_NAMES}"; then
+      fail "schema 3.0 profiles must include ${required_profile}"
+    fi
+  done
+  if ! grep -Fxq "${DEFAULT_PROFILE}" <<<"${PROFILE_NAMES}"; then
+    fail "default_profile ${DEFAULT_PROFILE} is not a known profile"
+  fi
+fi
 while IFS= read -r profile; do
   PROFILE_NAME="$(jq -r '.name' <<<"${profile}")"
   [[ -n "${PROFILE_NAME}" ]] || fail "profile has empty name"
@@ -170,6 +195,13 @@ while IFS= read -r profile; do
       fail "profile ${PROFILE_NAME} extension '${ext}' is not in runtime catalog extensions"
     fi
   done < <(jq -r '.extensions[]?' <<<"${profile}")
+
+  while IFS= read -r ext; do
+    [[ -n "${ext}" ]] || continue
+    if ! grep -Fxq "${ext}" <<<"${CATALOG_ZEND_EXTENSIONS}"; then
+      fail "profile ${PROFILE_NAME} zend_extension '${ext}' is not in runtime catalog zend extensions"
+    fi
+  done < <(jq -r '.zend_extensions[]?' <<<"${profile}")
 done < <(jq -c '.profiles[]' "${MANIFEST}")
 
 echo "manifest OK: ${MANIFEST} (${RUNTIME_COUNT} runtimes, schema ${SCHEMA})"

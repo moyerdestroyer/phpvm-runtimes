@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build a dynamic PHP CLI runtime from source for the current host.
+# (Legacy) Build a dynamic/shared PHP for experimentation.
+# Catalog releases use the static SPC path (build-static-php.sh).
 #
 # Usage:
 #   build-dynamic-php.sh <php-version> <staging-dir>
@@ -39,6 +40,25 @@ for tool in gcc make autoconf bison re2c pkg-config rsync; do
     exit 1
   fi
 done
+
+case "$(uname -s)" in
+  Linux)
+    for tool in patchelf ldd readelf dpkg-query ldconfig; do
+      if ! command -v "${tool}" >/dev/null 2>&1; then
+        echo "error: required dynamic runtime bundling tool not found: ${tool}" >&2
+        exit 1
+      fi
+    done
+    ;;
+  Darwin)
+    for tool in otool install_name_tool; do
+      if ! command -v "${tool}" >/dev/null 2>&1; then
+        echo "error: required dynamic runtime bundling tool not found: ${tool}" >&2
+        exit 1
+      fi
+    done
+    ;;
+esac
 
 pkg_exists() {
   pkg-config --exists "$1" >/dev/null 2>&1
@@ -233,5 +253,12 @@ jq -n \
     zend_extension_api: $zend_extension_api
   }' > "${STAGING}/metadata/runtime.json"
 
-"${PHP_BIN}" -n -v
+"${ROOT}/scripts/bundle-dynamic-libs.sh" "${STAGING}"
+METADATA_ARGS=("${ROOT}/scripts/write-dynamic-runtime-metadata.py" "${STAGING}")
+if [[ "$(uname -s)" == "Linux" ]]; then
+  METADATA_ARGS+=(--strict-licenses)
+fi
+python3 "${METADATA_ARGS[@]}"
+
+"${STAGING}/bin/php" -n -v
 echo "dynamic PHP ready: ${STAGING}"

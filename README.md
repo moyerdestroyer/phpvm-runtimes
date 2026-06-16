@@ -24,14 +24,12 @@ Each version is built for two target triples:
 
 | Target | Platform | Minimum host |
 |---|---|---|
-| `x86_64-unknown-linux-gnu` | Linux x86_64 (glibc) | glibc 2.35+ (Ubuntu 22.04 class) |
+| `x86_64-unknown-linux-gnu` | Linux x86_64 (glibc) | See `metadata/runtime.json` `linux_compatibility.required_glibc` |
 | `aarch64-apple-darwin` | macOS Apple Silicon | macOS 12+ |
 
 That is **8 tarballs** per catalog release (4 PHP versions × 2 platforms).
 
-Current published runtimes are static v2.1 artifacts. The next catalog format is manifest v3.0 dynamic bundles: a PHP ZIP-style layout with `ext/` loadable extensions and `etc/conf.d/` profile snippets.
-
-Manifest profiles (`wordpress`, `laravel`, `minimal`) are starter templates for phpvm — they do not change what is compiled into the binary.
+Runtimes are static binaries built with StaticPHP (SPC). Manifest v2.1 `artifacts` provide per-platform URLs. Profiles (`minimal`, `dev`, `debug`) are starter templates for phpvm (the full set of common extensions is compiled in for the `dev` profile). `dev` is the default profile.
 
 **Not in v1:** macOS Intel, Linux ARM64, Windows.
 
@@ -50,7 +48,7 @@ manifest_url = "https://raw.githubusercontent.com/moyerdestroyer/phpvm-runtimes/
 phpvm install 8.3          # latest 8.3.x patch from the manifest
 phpvm run 8.3 php -v
 phpvm run 8.3 composer -V
-phpvm profile use wordpress
+phpvm profile use debug
 ```
 
 Install specifiers like `8.3`, `8.3.latest`, or an exact patch (e.g. `8.3.31`) resolve against `manifest.json`. Only the latest patch per minor line is hosted; older patches work only if already installed locally.
@@ -61,34 +59,17 @@ Install specifiers like `8.3`, `8.3.latest`, or an exact patch (e.g. `8.3.31`) r
 
 ## What you get in a tarball
 
-Each release asset is a gzip tarball with a single top-level directory. Static v2.1 assets contain:
+Each release asset is a gzip tarball with a single top-level directory. Static assets contain:
 
 ```text
 php-8.3.31-x86_64-unknown-linux-gnu/
 └── bin/
-    ├── php              # static PHP CLI
+    ├── php              # static PHP CLI (common extensions compiled in)
     ├── composer         # wrapper script
     └── composer.phar    # Composer PHAR
 ```
 
-Dynamic v3.0 assets add the runtime pieces needed for extension management:
-
-```text
-php-8.4.22-x86_64-unknown-linux-gnu/
-├── bin/
-│   ├── php
-│   ├── composer
-│   └── composer.phar
-├── ext/                 # loadable .so/.dylib/.dll extensions
-├── etc/
-│   ├── php.ini          # base config
-│   ├── conf.d/          # phpvm-generated profile/extension snippets
-│   └── profiles/        # optional runtime-local presets
-├── lib/                 # bundled shared library deps, when needed
-└── include/php/         # optional, for future source-build custom extensions
-```
-
-phpvm sets `PHPRC` to `etc/` and `PHP_INI_SCAN_DIR` to `etc/conf.d` when running a dynamic runtime. Dynamic archives should not contain build-machine absolute paths; phpvm refreshes `extension_dir` and default Composer/PHAR extension snippets after extraction.
+phpvm uses the manifest profiles to know the `dev` (and other) starter sets, but the binary includes the full catalog.
 
 Asset naming is fixed:
 
@@ -102,10 +83,10 @@ Example: `php-8.3.31-x86_64-unknown-linux-gnu.tar.gz`
 
 ## How it is built
 
-The current static catalog is compiled with [StaticPHP](https://static-php.dev/) (`spc` v3) from craft recipes under `builds/`. Extension lists live in one place:
+Runtimes are compiled with [StaticPHP](https://static-php.dev/) (`spc` v3) from craft recipes under `builds/`. Extension lists live in one place:
 
 ```text
-builds/common/extensions.json   # catalog + spc extension sets
+builds/common/extensions.json   # catalog + spc extension sets (ensure common extensions are in "catalog" for the dev profile)
 builds/common/composer-version.txt
 builds/common/spc-pin.json      # pinned spc binary checksums
 builds/8.3.31/craft.yml        # generated recipe per PHP version
@@ -113,7 +94,7 @@ builds/8.3.31/craft.yml        # generated recipe per PHP version
 
 `scripts/render-craft.sh` generates `craft.yml` from `extensions.json`. Do not hand-edit craft files — change `extensions.json` and re-render.
 
-Dynamic v3.0 runtimes should be built as shared-extension PHP CLI bundles with `scripts/build-dynamic-runtime-local.sh` for local host builds. Package staging directories with `scripts/package-runtime.sh`; when `ext/` is present it runs `scripts/verify-dynamic-runtime.sh` instead of static `php -m` catalog verification.
+Use `scripts/build-runtime-local.sh` (or the CI reusable) for static builds. `scripts/package-runtime.sh` and `verify-extensions.sh` (`php -m` check) are used for static runtimes.
 
 Binaries are **never committed to git**. They attach to GitHub Releases tagged `catalog-YYYY-MM-DD`.
 
@@ -145,16 +126,7 @@ scripts/build-runtime-local.sh 8.3.31
 # → dist/php-8.3.31-<host-target>.tar.gz
 ```
 
-Build and package one dynamic v3.0 runtime for the **current host only**:
-
-```bash
-scripts/build-dynamic-runtime-local.sh 8.3.31
-# → dist/php-8.3.31-<host-target>.tar.gz
-```
-
-Linux dynamic catalog builds are normally produced locally. macOS Apple Silicon
-dynamic builds use GitHub Actions (`build-apple-dynamic.yml`) and can be
-combined with local Linux tarballs before running `prepare-catalog.sh`.
+Both Linux and macOS Apple Silicon catalog builds are produced via StaticPHP. Use the GitHub Actions `build-catalog.yml` (or `build-runtime.yml`) for the official matrix. Local Linux builds use `scripts/setup-linux-build-deps.sh` + the build script; macOS uses Homebrew build tools + the same.
 
 ---
 
@@ -197,9 +169,8 @@ See [AGENTS.md](AGENTS.md) for the full checklist and [docs/phpvm-runtimes.md](d
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | `validate.yml` | push / PR | Script syntax, manifest schema, recipe drift |
-| `build-runtime.yml` | manual | Build one static Linux or dynamic Apple runtime |
-| `build-catalog.yml` | manual | Build all 8 catalog tarballs |
-| `build-apple-dynamic.yml` | manual | Build dynamic macOS Apple Silicon tarballs |
+| `build-runtime.yml` | manual | Build one static runtime (any target) |
+| `build-catalog.yml` | manual | Build all 8 catalog tarballs (static) |
 | `publish-catalog.yml` | manual | Validate manifest + tarballs, create draft release |
 
 ---
@@ -217,7 +188,7 @@ See [AGENTS.md](AGENTS.md) for the full checklist and [docs/phpvm-runtimes.md](d
 ## Design constraints
 
 - One runtime archive per PHP version and target — not per profile.
-- Dynamic profiles enable extensions by writing `etc/conf.d` snippets; they are not separate downloads.
+- Profiles (`minimal`/`dev`/`debug`) are documented in the manifest for phpvm; the static binary includes the common extensions for `dev`.
 - One runtime row per **minor line** in the manifest (latest patch only).
 - Do not mix phpvm CLI releases with phpvm-runtimes catalog releases.
 - Do not commit `.tar.gz` binaries to this repository.

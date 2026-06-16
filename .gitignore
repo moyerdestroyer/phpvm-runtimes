@@ -22,6 +22,8 @@ builds/*/source/
 builds/*/downloads/
 builds/*/pkgroot/
 builds/*/log/
+builds/*/dynamic-work/
+builds/*/dynamic-staging/
 
 # Python
 __pycache__/

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Build, stage, smoke-test, and package one runtime for the current host.
+# Build, stage, smoke-test, and package one **static** runtime for the current host.
 #
 # Usage:
 #   build-runtime-local.sh <php-version> [target] [output-dir]
 #
 # The target defaults to the current host triple. Cross-compiling is not
 # supported here; use GitHub Actions for non-host targets.
+#
+# This is the primary local build entrypoint for catalog releases (static via SPC).
 set -euo pipefail
 
 usage() {
