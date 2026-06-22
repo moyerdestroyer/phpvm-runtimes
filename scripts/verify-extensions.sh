@@ -30,14 +30,36 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
+# php -m lists both [PHP Modules] and [Zend Modules]. Some zend extensions
+# (notably opcache in static SPC builds) are compiled in but not listed until
+# explicitly enabled; fall back to a strings check for those.
+ZEND_EXTENSIONS=(opcache)
 MODULES="$("${PHP_BIN}" -m)"
 MISSING=()
 
+is_zend_extension() {
+  local ext="$1"
+  local candidate
+  for candidate in "${ZEND_EXTENSIONS[@]}"; do
+    [[ "${ext}" == "${candidate}" ]] && return 0
+  done
+  return 1
+}
+
+zend_extension_present() {
+  local ext="$1"
+  strings "${PHP_BIN}" | grep -Eqi "${ext}|OPCACHE"
+}
+
 while IFS= read -r ext; do
   [[ -n "${ext}" ]] || continue
-  if ! grep -Fqxi "${ext}" <<<"${MODULES}"; then
-    MISSING+=("${ext}")
+  if grep -Fqxi "${ext}" <<<"${MODULES}"; then
+    continue
   fi
+  if is_zend_extension "${ext}" && zend_extension_present "${ext}"; then
+    continue
+  fi
+  MISSING+=("${ext}")
 done < <(jq -r '.catalog[]' "${EXT_JSON}")
 
 if [[ ${#MISSING[@]} -gt 0 ]]; then
