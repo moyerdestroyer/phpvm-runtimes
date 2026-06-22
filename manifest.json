@@ -1,7 +1,7 @@
 {
   "schema": "2.1",
-  "published_at": "2026-06-16T03:56:10Z",
-  "catalog_tag": "catalog-2026-06-16",
+  "published_at": "2026-06-22T16:39:13Z",
+  "catalog_tag": "catalog-2026-06-22",
   "profiles": [
     {
       "name": "minimal",
@@ -60,7 +60,6 @@
         "gettext",
         "gmp",
         "iconv",
-        "imagick",
         "intl",
         "ldap",
         "mbstring",
@@ -111,7 +110,6 @@
         "gettext",
         "gmp",
         "iconv",
-        "imagick",
         "intl",
         "ldap",
         "mbstring",
@@ -145,12 +143,12 @@
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
-          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-16/php-8.1.34-x86_64-unknown-linux-gnu.tar.gz",
-          "sha256": "08d81266afd9a290a6088d9935dcada051990fa645568979866247c50d48ed35"
+          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-22/php-8.1.34-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "04a263114c5cdb053c0720594daaa9e3024d13af50871da0236b9124280ee61c"
         },
         "aarch64-apple-darwin": {
-          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-16/php-8.1.34-aarch64-apple-darwin.tar.gz",
-          "sha256": "d05263dae3ed80e8a88533d84d7aab0e6dade8348ae5c297eb26c03afe75b4d1"
+          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-22/php-8.1.34-aarch64-apple-darwin.tar.gz",
+          "sha256": "f7769e4d898ac32d50254df81633c52b05a398e33c7f47b481892541abdfa4c3"
         }
       },
       "runtime_type": "static",
@@ -173,7 +171,6 @@
         "gettext",
         "gmp",
         "iconv",
-        "imagick",
         "intl",
         "ldap",
         "mbstring",
@@ -207,12 +204,12 @@
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
-          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-16/php-8.2.31-x86_64-unknown-linux-gnu.tar.gz",
-          "sha256": "5f01892468790abd3376f250aa0d5ee97a4e223c0fec3ea1499cfe6f45bc2734"
+          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-22/php-8.2.31-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "e227986284678991cd28475d0422524e0a76dd2b9fc17d3b91f32382e49c28a9"
         },
         "aarch64-apple-darwin": {
-          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-16/php-8.2.31-aarch64-apple-darwin.tar.gz",
-          "sha256": "134e618d3dc419970aa8ed84e29722c2c8998778e9c7690b866701e5904c7408"
+          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-22/php-8.2.31-aarch64-apple-darwin.tar.gz",
+          "sha256": "5b2eaa644be5d4511cd98ca7b02e5b6d4e0f0bb9ff1635ea9e70956d901b2316"
         }
       },
       "runtime_type": "static",
@@ -235,7 +232,6 @@
         "gettext",
         "gmp",
         "iconv",
-        "imagick",
         "intl",
         "ldap",
         "mbstring",
@@ -269,12 +265,12 @@
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
-          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-16/php-8.3.31-x86_64-unknown-linux-gnu.tar.gz",
-          "sha256": "a6896a642d84f544fbb87f25f5dcf7c2b6b8ac936a298e3285a9a1281f3d4dfd"
+          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-22/php-8.3.31-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "56e84f3be0d7fe30f6e1ffb2a86009789fcfa57c8747be8439d7bd131aaa473a"
         },
         "aarch64-apple-darwin": {
-          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-16/php-8.3.31-aarch64-apple-darwin.tar.gz",
-          "sha256": "5a63c418eb57815f0d5d8b9bd726085cb0f0829555fbb9896258f7024dd27449"
+          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-22/php-8.3.31-aarch64-apple-darwin.tar.gz",
+          "sha256": "100bba948ce02497df9f011a1dfd4d997fdc53d6719bb279abe21583dc234545"
         }
       },
       "runtime_type": "static",
@@ -297,7 +293,6 @@
         "gettext",
         "gmp",
         "iconv",
-        "imagick",
         "intl",
         "ldap",
         "mbstring",
@@ -331,12 +326,12 @@
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
-          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-16/php-8.4.22-x86_64-unknown-linux-gnu.tar.gz",
-          "sha256": "5f8e7f848168a1f36fb7d4383de66c1b7c0fbc4810a433f6adfb6bd743b3597d"
+          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-22/php-8.4.22-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "e5d5439d143bd238dd1bb4bd0381d391cdf075a1ced79d9db14c385245936f20"
         },
         "aarch64-apple-darwin": {
-          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-16/php-8.4.22-aarch64-apple-darwin.tar.gz",
-          "sha256": "6675bac775da9e7c9af0b660a40d729b7c2e5b90302e9ce5f336d731a3579d01"
+          "url": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/catalog-2026-06-22/php-8.4.22-aarch64-apple-darwin.tar.gz",
+          "sha256": "081dc52740214a3f5f5c641e7d1cb0d177e1142c48740cf6c1146fee1fbfc16c"
         }
       },
       "runtime_type": "static",
