@@ -13,7 +13,9 @@ Runtimes are built with [StaticPHP](https://static-php.dev/) (`spc` v3). Each ve
 - **`minimal_profile`** — bare essentials (`openssl`, `phar`, `mbstring`).
 - **`spc`** — superset passed to StaticPHP (includes hidden dependencies such as `mysqlnd`, `ctype`, `filter`, `pdo`).
 
-Extensions present in `catalog` but not in `dev_profile` (e.g. `bz2`, `ffi`, `gettext`, `gmp`, `iconv`, `imagick`, `ldap`, `memcached`, `opcache`, `pdo_pgsql`, `pgsql`, `soap`, `xsl`, `yaml`) are compiled in and always available via `php -m` but are not part of the default `dev` profile. Enable them with `phpvm ext enable <name>` or `-d extension=<name>`.
+Extensions present in `catalog` but not in `dev_profile` (e.g. `bz2`, `ffi`, `gettext`, `gmp`, `iconv`, `ldap`, `memcached`, `opcache`, `pdo_pgsql`, `pgsql`, `soap`, `xsl`, `yaml`) are compiled in and always available via `php -m` but are not part of the default `dev` profile. Enable them with `phpvm ext enable <name>` or `-d extension=<name>`.
+
+`imagick` is omitted from the catalog until ImageMagick builds reliably in SPC static musl targets.
 
 ## Local Linux build deps
 

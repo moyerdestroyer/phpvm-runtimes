@@ -48,7 +48,8 @@ is_zend_extension() {
 
 zend_extension_present() {
   local ext="$1"
-  strings "${PHP_BIN}" | grep -Eqi "${ext}|OPCACHE"
+  # Search the binary directly — piping strings→grep trips pipefail on SIGPIPE.
+  grep -aEqi "${ext}|OPCACHE" "${PHP_BIN}"
 }
 
 while IFS= read -r ext; do
