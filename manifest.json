@@ -14,21 +14,28 @@
     {
       "name": "dev",
       "extensions": [
-        "openssl",
-        "phar",
-        "mbstring",
+        "bcmath",
         "curl",
         "dom",
+        "exif",
         "fileinfo",
+        "ftp",
         "gd",
         "intl",
+        "mbstring",
         "mysqli",
+        "openssl",
+        "pcntl",
         "pdo",
         "pdo_mysql",
         "pdo_sqlite",
+        "phar",
+        "posix",
+        "redis",
         "session",
         "simplexml",
         "sockets",
+        "sodium",
         "sqlite3",
         "tokenizer",
         "xml",
@@ -41,31 +48,49 @@
     {
       "name": "debug",
       "extensions": [
-        "openssl",
-        "phar",
-        "mbstring",
+        "bcmath",
+        "bz2",
         "curl",
         "dom",
+        "exif",
+        "ffi",
         "fileinfo",
+        "ftp",
         "gd",
+        "gettext",
+        "gmp",
+        "iconv",
+        "imagick",
         "intl",
+        "ldap",
+        "mbstring",
+        "memcached",
         "mysqli",
+        "opcache",
+        "openssl",
+        "pcntl",
         "pdo",
         "pdo_mysql",
+        "pdo_pgsql",
         "pdo_sqlite",
+        "pgsql",
+        "phar",
+        "posix",
+        "redis",
         "session",
         "simplexml",
+        "soap",
         "sockets",
+        "sodium",
         "sqlite3",
         "tokenizer",
         "xml",
         "xmlreader",
         "xmlwriter",
+        "xsl",
+        "yaml",
         "zip",
         "zlib"
-      ],
-      "zend_extensions": [
-        "xdebug"
       ]
     }
   ],
@@ -74,188 +99,49 @@
       "php": "8.1.34",
       "composer": "2.9.2",
       "extensions": [
-        {
-          "name": "curl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/curl.so"
-        },
-        {
-          "name": "dom",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/dom.so"
-        },
-        {
-          "name": "fileinfo",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/fileinfo.so"
-        },
-        {
-          "name": "gd",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/gd.so"
-        },
-        {
-          "name": "iconv",
-          "type": "extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/iconv.so"
-        },
-        {
-          "name": "intl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/intl.so"
-        },
-        {
-          "name": "mbstring",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/mbstring.so"
-        },
-        {
-          "name": "mysqli",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/mysqli.so"
-        },
-        {
-          "name": "opcache",
-          "type": "zend_extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/opcache.so"
-        },
-        {
-          "name": "openssl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/openssl.so"
-        },
-        {
-          "name": "pdo",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo.so"
-        },
-        {
-          "name": "pdo_mysql",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo_mysql.so"
-        },
-        {
-          "name": "pdo_sqlite",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo_sqlite.so"
-        },
-        {
-          "name": "phar",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/phar.so"
-        },
-        {
-          "name": "session",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/session.so"
-        },
-        {
-          "name": "simplexml",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/simplexml.so"
-        },
-        {
-          "name": "soap",
-          "type": "extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/soap.so"
-        },
-        {
-          "name": "sockets",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/sockets.so"
-        },
-        {
-          "name": "sqlite3",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/sqlite3.so"
-        },
-        {
-          "name": "tokenizer",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/tokenizer.so"
-        },
-        {
-          "name": "xdebug",
-          "type": "zend_extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/xdebug.so"
-        },
-        {
-          "name": "xml",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xml.so"
-        },
-        {
-          "name": "xmlreader",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xmlreader.so"
-        },
-        {
-          "name": "xmlwriter",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xmlwriter.so"
-        },
-        {
-          "name": "zip",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/zip.so"
-        },
-        {
-          "name": "zlib",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/zlib.so"
-        }
+        "bcmath",
+        "bz2",
+        "curl",
+        "dom",
+        "exif",
+        "ffi",
+        "fileinfo",
+        "ftp",
+        "gd",
+        "gettext",
+        "gmp",
+        "iconv",
+        "imagick",
+        "intl",
+        "ldap",
+        "mbstring",
+        "memcached",
+        "mysqli",
+        "opcache",
+        "openssl",
+        "pcntl",
+        "pdo",
+        "pdo_mysql",
+        "pdo_pgsql",
+        "pdo_sqlite",
+        "pgsql",
+        "phar",
+        "posix",
+        "redis",
+        "session",
+        "simplexml",
+        "soap",
+        "sockets",
+        "sodium",
+        "sqlite3",
+        "tokenizer",
+        "xml",
+        "xmlreader",
+        "xmlwriter",
+        "xsl",
+        "yaml",
+        "zip",
+        "zlib"
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
@@ -269,201 +155,55 @@
       },
       "runtime_type": "static",
       "thread_safety": "nts",
-      "abi": "20210902",
-      "extension_api": "20210902",
-      "zend_extension_api": "420210902",
-      "default_profile": "dev",
-      "linux_compatibility": {
-        "builder_glibc": "2.39",
-        "required_glibc": "2.38"
-      }
+      "default_profile": "dev"
     },
     {
       "php": "8.2.31",
       "composer": "2.9.2",
       "extensions": [
-        {
-          "name": "curl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/curl.so"
-        },
-        {
-          "name": "dom",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/dom.so"
-        },
-        {
-          "name": "fileinfo",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/fileinfo.so"
-        },
-        {
-          "name": "gd",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/gd.so"
-        },
-        {
-          "name": "iconv",
-          "type": "extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/iconv.so"
-        },
-        {
-          "name": "intl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/intl.so"
-        },
-        {
-          "name": "mbstring",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/mbstring.so"
-        },
-        {
-          "name": "mysqli",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/mysqli.so"
-        },
-        {
-          "name": "opcache",
-          "type": "zend_extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/opcache.so"
-        },
-        {
-          "name": "openssl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/openssl.so"
-        },
-        {
-          "name": "pdo",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo.so"
-        },
-        {
-          "name": "pdo_mysql",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo_mysql.so"
-        },
-        {
-          "name": "pdo_sqlite",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo_sqlite.so"
-        },
-        {
-          "name": "phar",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/phar.so"
-        },
-        {
-          "name": "session",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/session.so"
-        },
-        {
-          "name": "simplexml",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/simplexml.so"
-        },
-        {
-          "name": "soap",
-          "type": "extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/soap.so"
-        },
-        {
-          "name": "sockets",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/sockets.so"
-        },
-        {
-          "name": "sqlite3",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/sqlite3.so"
-        },
-        {
-          "name": "tokenizer",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/tokenizer.so"
-        },
-        {
-          "name": "xdebug",
-          "type": "zend_extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/xdebug.so"
-        },
-        {
-          "name": "xml",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xml.so"
-        },
-        {
-          "name": "xmlreader",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xmlreader.so"
-        },
-        {
-          "name": "xmlwriter",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xmlwriter.so"
-        },
-        {
-          "name": "zip",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/zip.so"
-        },
-        {
-          "name": "zlib",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/zlib.so"
-        }
+        "bcmath",
+        "bz2",
+        "curl",
+        "dom",
+        "exif",
+        "ffi",
+        "fileinfo",
+        "ftp",
+        "gd",
+        "gettext",
+        "gmp",
+        "iconv",
+        "imagick",
+        "intl",
+        "ldap",
+        "mbstring",
+        "memcached",
+        "mysqli",
+        "opcache",
+        "openssl",
+        "pcntl",
+        "pdo",
+        "pdo_mysql",
+        "pdo_pgsql",
+        "pdo_sqlite",
+        "pgsql",
+        "phar",
+        "posix",
+        "redis",
+        "session",
+        "simplexml",
+        "soap",
+        "sockets",
+        "sodium",
+        "sqlite3",
+        "tokenizer",
+        "xml",
+        "xmlreader",
+        "xmlwriter",
+        "xsl",
+        "yaml",
+        "zip",
+        "zlib"
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
@@ -477,201 +217,55 @@
       },
       "runtime_type": "static",
       "thread_safety": "nts",
-      "abi": "20220829",
-      "extension_api": "20220829",
-      "zend_extension_api": "420220829",
-      "default_profile": "dev",
-      "linux_compatibility": {
-        "builder_glibc": "2.39",
-        "required_glibc": "2.38"
-      }
+      "default_profile": "dev"
     },
     {
       "php": "8.3.31",
       "composer": "2.9.2",
       "extensions": [
-        {
-          "name": "curl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/curl.so"
-        },
-        {
-          "name": "dom",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/dom.so"
-        },
-        {
-          "name": "fileinfo",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/fileinfo.so"
-        },
-        {
-          "name": "gd",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/gd.so"
-        },
-        {
-          "name": "iconv",
-          "type": "extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/iconv.so"
-        },
-        {
-          "name": "intl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/intl.so"
-        },
-        {
-          "name": "mbstring",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/mbstring.so"
-        },
-        {
-          "name": "mysqli",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/mysqli.so"
-        },
-        {
-          "name": "opcache",
-          "type": "zend_extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/opcache.so"
-        },
-        {
-          "name": "openssl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/openssl.so"
-        },
-        {
-          "name": "pdo",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo.so"
-        },
-        {
-          "name": "pdo_mysql",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo_mysql.so"
-        },
-        {
-          "name": "pdo_sqlite",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo_sqlite.so"
-        },
-        {
-          "name": "phar",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/phar.so"
-        },
-        {
-          "name": "session",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/session.so"
-        },
-        {
-          "name": "simplexml",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/simplexml.so"
-        },
-        {
-          "name": "soap",
-          "type": "extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/soap.so"
-        },
-        {
-          "name": "sockets",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/sockets.so"
-        },
-        {
-          "name": "sqlite3",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/sqlite3.so"
-        },
-        {
-          "name": "tokenizer",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/tokenizer.so"
-        },
-        {
-          "name": "xdebug",
-          "type": "zend_extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/xdebug.so"
-        },
-        {
-          "name": "xml",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xml.so"
-        },
-        {
-          "name": "xmlreader",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xmlreader.so"
-        },
-        {
-          "name": "xmlwriter",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xmlwriter.so"
-        },
-        {
-          "name": "zip",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/zip.so"
-        },
-        {
-          "name": "zlib",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/zlib.so"
-        }
+        "bcmath",
+        "bz2",
+        "curl",
+        "dom",
+        "exif",
+        "ffi",
+        "fileinfo",
+        "ftp",
+        "gd",
+        "gettext",
+        "gmp",
+        "iconv",
+        "imagick",
+        "intl",
+        "ldap",
+        "mbstring",
+        "memcached",
+        "mysqli",
+        "opcache",
+        "openssl",
+        "pcntl",
+        "pdo",
+        "pdo_mysql",
+        "pdo_pgsql",
+        "pdo_sqlite",
+        "pgsql",
+        "phar",
+        "posix",
+        "redis",
+        "session",
+        "simplexml",
+        "soap",
+        "sockets",
+        "sodium",
+        "sqlite3",
+        "tokenizer",
+        "xml",
+        "xmlreader",
+        "xmlwriter",
+        "xsl",
+        "yaml",
+        "zip",
+        "zlib"
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
@@ -685,201 +279,55 @@
       },
       "runtime_type": "static",
       "thread_safety": "nts",
-      "abi": "20230831",
-      "extension_api": "20230831",
-      "zend_extension_api": "420230831",
-      "default_profile": "dev",
-      "linux_compatibility": {
-        "builder_glibc": "2.39",
-        "required_glibc": "2.38"
-      }
+      "default_profile": "dev"
     },
     {
       "php": "8.4.22",
       "composer": "2.9.2",
       "extensions": [
-        {
-          "name": "curl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/curl.so"
-        },
-        {
-          "name": "dom",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/dom.so"
-        },
-        {
-          "name": "fileinfo",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/fileinfo.so"
-        },
-        {
-          "name": "gd",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/gd.so"
-        },
-        {
-          "name": "iconv",
-          "type": "extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/iconv.so"
-        },
-        {
-          "name": "intl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/intl.so"
-        },
-        {
-          "name": "mbstring",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/mbstring.so"
-        },
-        {
-          "name": "mysqli",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/mysqli.so"
-        },
-        {
-          "name": "opcache",
-          "type": "zend_extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/opcache.so"
-        },
-        {
-          "name": "openssl",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/openssl.so"
-        },
-        {
-          "name": "pdo",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo.so"
-        },
-        {
-          "name": "pdo_mysql",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo_mysql.so"
-        },
-        {
-          "name": "pdo_sqlite",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/pdo_sqlite.so"
-        },
-        {
-          "name": "phar",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/phar.so"
-        },
-        {
-          "name": "session",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/session.so"
-        },
-        {
-          "name": "simplexml",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/simplexml.so"
-        },
-        {
-          "name": "soap",
-          "type": "extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/soap.so"
-        },
-        {
-          "name": "sockets",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/sockets.so"
-        },
-        {
-          "name": "sqlite3",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/sqlite3.so"
-        },
-        {
-          "name": "tokenizer",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/tokenizer.so"
-        },
-        {
-          "name": "xdebug",
-          "type": "zend_extension",
-          "bundled": true,
-          "default": false,
-          "file": "ext/xdebug.so"
-        },
-        {
-          "name": "xml",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xml.so"
-        },
-        {
-          "name": "xmlreader",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xmlreader.so"
-        },
-        {
-          "name": "xmlwriter",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/xmlwriter.so"
-        },
-        {
-          "name": "zip",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/zip.so"
-        },
-        {
-          "name": "zlib",
-          "type": "extension",
-          "bundled": true,
-          "default": true,
-          "file": "ext/zlib.so"
-        }
+        "bcmath",
+        "bz2",
+        "curl",
+        "dom",
+        "exif",
+        "ffi",
+        "fileinfo",
+        "ftp",
+        "gd",
+        "gettext",
+        "gmp",
+        "iconv",
+        "imagick",
+        "intl",
+        "ldap",
+        "mbstring",
+        "memcached",
+        "mysqli",
+        "opcache",
+        "openssl",
+        "pcntl",
+        "pdo",
+        "pdo_mysql",
+        "pdo_pgsql",
+        "pdo_sqlite",
+        "pgsql",
+        "phar",
+        "posix",
+        "redis",
+        "session",
+        "simplexml",
+        "soap",
+        "sockets",
+        "sodium",
+        "sqlite3",
+        "tokenizer",
+        "xml",
+        "xmlreader",
+        "xmlwriter",
+        "xsl",
+        "yaml",
+        "zip",
+        "zlib"
       ],
       "artifacts": {
         "x86_64-unknown-linux-gnu": {
@@ -893,14 +341,7 @@
       },
       "runtime_type": "static",
       "thread_safety": "nts",
-      "abi": "20240924",
-      "extension_api": "20240924",
-      "zend_extension_api": "420240924",
-      "default_profile": "dev",
-      "linux_compatibility": {
-        "builder_glibc": "2.39",
-        "required_glibc": "2.38"
-      }
+      "default_profile": "dev"
     }
   ],
   "default_profile": "dev"

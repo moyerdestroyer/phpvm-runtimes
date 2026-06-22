@@ -2,12 +2,13 @@
 
 ## Before publishing a catalog
 
-- [ ] phpvm supports manifest v2.1 or v3.0 `artifacts` (per-platform download URLs)
+- [ ] phpvm supports manifest v2.1 `artifacts` (per-platform download URLs)
 - [ ] All **8** tarballs built and smoke-tested (`bin/php -v`, `bin/composer -V`, `php -m`)
-- [ ] `builds/common/extensions.json` "catalog" lists all common extensions (so they appear in the manifest "dev" profile and pass profile validation in verify-manifest)
-- [ ] Extension lists in `manifest.json` match every platform build (and the catalog)
+- [ ] `builds/common/extensions.json` is the single source of truth: `catalog` lists all extensions compiled into every binary; `dev_profile` and `minimal_profile` define the profile subsets; `debug` profile = full catalog; profiles must pass validation in verify-manifest
+- [ ] Extension lists in `manifest.json` match every platform build (and the catalog) — `update-manifest.py` derives them from `extensions.json`
 - [ ] `scripts/verify-manifest.sh --strict` passes
 - [ ] `scripts/verify-manifest-assets.sh dist` passes (tarball checksums match manifest)
+- [ ] Only extensions buildable statically by SPC for the project's musl static target are in the "catalog" (see SPC extension notes; xdebug is deliberately omitted as it only supports shared builds)
 - [ ] `catalog_tag` and `published_at` set in `manifest.json`
 
 ## Build one runtime (local)
@@ -18,7 +19,7 @@ Linux x86_64 runtimes are built locally (this machine):
 scripts/build-runtime-local.sh 8.3.31
 ```
 
-Apple Silicon runtimes are built via GitHub Actions (see table below). Use the reusable workflows so both platforms produce static SPC binaries.
+Apple Silicon runtimes are built via GitHub Actions (see table below). Use the reusable workflows so both platforms produce static SPC binaries. Linux runtimes are fully static (musl) and have no glibc dependency.
 
 ## Prepare catalog from built assets
 
@@ -49,6 +50,7 @@ scripts/verify-manifest.sh --strict
 | Workflow | Purpose |
 |---|---|
 | `validate.yml` | PR/push: script syntax, manifest schema, recipe drift |
+| `check-php-updates.yml` | Weekly: detect new PHP patches, open issue if found |
 | `build-runtime.yml` | Manual: build one PHP version × one target (static via SPC) |
 | `build-catalog.yml` | Manual: build all 8 catalog tarballs (static via SPC for both platforms) |
 | `publish-catalog.yml` | Manual: attach artifacts + `manifest.json` to a catalog release |

@@ -1,0 +1,94 @@
+# Weekly check for new PHP patch releases. Opens or updates an issue when a
+# newer patch is available than what is in manifest.json.
+name: check-php-updates
+
+on:
+  schedule:
+    # Mondays 14:00 UTC
+    - cron: "0 14 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Check for PHP updates
+        id: check
+        run: |
+          set -euo pipefail
+          OUTPUT="$(scripts/check-php-updates.sh manifest.json 2>/dev/null || true)"
+          echo "output<<EOF" >> "${GITHUB_OUTPUT}"
+          echo "${OUTPUT}" >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
+
+          if echo "${OUTPUT}" | grep -q '^UPDATE'; then
+            echo "has_updates=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has_updates=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Open or update issue
+        if: steps.check.outputs.has_updates == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TITLE="PHP patch updates available"
+          EXISTING="$(gh issue list --state open --search "${TITLE} in:title" --json number --limit 1 -q '.[0].number // empty')"
+
+          BODY="$(cat <<'ISSUE_EOF'
+          ## PHP patch updates available
+
+          The following PHP versions in `manifest.json` have newer patches available on php.net:
+
+          ```
+          UPDATES_HERE
+          ```
+
+          ### Rotation steps
+
+          1. Build new tarballs (Linux locally, macOS via Actions).
+          2. Update `builds/<new-version>/` recipe dir.
+          3. Run `scripts/prepare-catalog.sh --catalog-tag catalog-YYYY-MM-DD`.
+          4. Commit `manifest.json` and publish the catalog release.
+
+          See [AGENTS.md](../blob/master/AGENTS.md) for the full checklist.
+          ISSUE_EOF
+          )"
+
+          # Inject actual update lines
+          UPDATES="$(echo "${{ steps.check.outputs.output }}" | grep '^UPDATE')"
+          BODY="${BODY/UPDATES_HERE/${UPDATES}}"
+
+          if [[ -n "${EXISTING}" ]]; then
+            gh issue edit "${EXISTING}" --title "${TITLE}" --body "${BODY}"
+            echo "Updated existing issue #${EXISTING}"
+          else
+            gh issue create --title "${TITLE}" --body "${BODY}" --label "php-update"
+            echo "Created new issue"
+          fi
+
+      - name: Close resolved issue
+        if: steps.check.outputs.has_updates == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TITLE="PHP patch updates available"
+          EXISTING="$(gh issue list --state open --search "${TITLE} in:title" --json number --limit 1 -q '.[0].number // empty')"
+          if [[ -n "${EXISTING}" ]]; then
+            gh issue close "${EXISTING}" --comment "All PHP versions are current. Closing."
+            echo "Closed issue #${EXISTING}"
+          else
+            echo "No open update issue to close"
+          fi

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate manifest.json schema (v2.1 static or v3.0 dynamic) and optional release readiness.
+# Validate manifest.json schema (v2.1 static) and optional release readiness.
 #
 # Usage:
 #   verify-manifest.sh [--strict] [manifest.json]
@@ -51,19 +51,15 @@ fail() {
 }
 
 SCHEMA="$(jq -r '.schema // empty' "${MANIFEST}")"
-[[ "${SCHEMA}" == "2.1" || "${SCHEMA}" == "3.0" ]] \
-  || fail "schema must be 2.1 or 3.0 (got '${SCHEMA}')"
+[[ "${SCHEMA}" == "2.1" ]] \
+  || fail "schema must be 2.1 (got '${SCHEMA}')"
 
 RUNTIME_COUNT="$(jq '.runtimes | length' "${MANIFEST}")"
 [[ "${RUNTIME_COUNT}" -eq 4 ]] || fail "expected exactly 4 runtimes, got ${RUNTIME_COUNT}"
 
 EXPECTED_EXTENSIONS=""
 if [[ -f "${EXTENSIONS_JSON}" ]]; then
-  if [[ "${SCHEMA}" == "3.0" ]]; then
-    EXPECTED_EXTENSIONS="$(jq -r '.dynamic_catalog | sort | @tsv' "${EXTENSIONS_JSON}")"
-  else
-    EXPECTED_EXTENSIONS="$(jq -r '.catalog | sort | @tsv' "${EXTENSIONS_JSON}")"
-  fi
+  EXPECTED_EXTENSIONS="$(jq -r '.catalog | sort | @tsv' "${EXTENSIONS_JSON}")"
 fi
 
 EXPECTED_COMPOSER=""
@@ -76,11 +72,6 @@ if [[ "${STRICT}" -eq 1 ]]; then
   [[ -n "${TAG}" && "${TAG}" != "null" ]] || fail "--strict: catalog_tag must be set"
   PUBLISHED="$(jq -r '.published_at // empty' "${MANIFEST}")"
   [[ -n "${PUBLISHED}" && "${PUBLISHED}" != "null" ]] || fail "--strict: published_at must be set"
-fi
-
-DEFAULT_PROFILE="$(jq -r '.default_profile // empty' "${MANIFEST}")"
-if [[ "${SCHEMA}" == "3.0" ]]; then
-  [[ "${DEFAULT_PROFILE}" == "dev" ]] || fail "schema 3.0 default_profile must be dev"
 fi
 
 # Track minor lines — one runtime per major.minor.
@@ -98,31 +89,14 @@ while IFS= read -r entry; do
     fail "runtime ${PHP} composer ${COMPOSER} does not match ${COMPOSER_PIN} (${EXPECTED_COMPOSER})"
   fi
   [[ "${EXT_COUNT}" -gt 0 ]] || fail "runtime ${PHP} has empty extensions list"
-  [[ "${RUNTIME_TYPE}" == "static" || "${RUNTIME_TYPE}" == "dynamic" ]] \
-    || fail "runtime ${PHP} runtime_type must be static or dynamic"
+  [[ "${RUNTIME_TYPE}" == "static" ]] \
+    || fail "runtime ${PHP} runtime_type must be static (got '${RUNTIME_TYPE}')"
 
   if [[ -n "${EXPECTED_EXTENSIONS}" ]]; then
     RUNTIME_EXTENSIONS="$(jq -r '[.extensions[] | if type == "string" then . else .name end] | sort | @tsv' <<<"${entry}")"
     if [[ "${RUNTIME_EXTENSIONS}" != "${EXPECTED_EXTENSIONS}" ]]; then
       fail "runtime ${PHP} extensions do not match builds/common/extensions.json catalog"
     fi
-  fi
-
-  if [[ "${SCHEMA}" == "3.0" ]]; then
-    [[ "${RUNTIME_TYPE}" == "dynamic" ]] \
-      || fail "runtime ${PHP} in schema 3.0 must set runtime_type=dynamic"
-    RUNTIME_DEFAULT_PROFILE="$(jq -r '.default_profile // empty' <<<"${entry}")"
-    [[ "${RUNTIME_DEFAULT_PROFILE}" == "dev" ]] \
-      || fail "runtime ${PHP} default_profile must be dev"
-    while IFS= read -r ext; do
-      NAME="$(jq -r 'if type == "string" then . else .name // empty end' <<<"${ext}")"
-      TYPE="$(jq -r 'if type == "string" then "extension" else .type // "extension" end' <<<"${ext}")"
-      FILE="$(jq -r 'if type == "string" then empty else .file // empty end' <<<"${ext}")"
-      [[ -n "${NAME}" ]] || fail "runtime ${PHP} has extension with empty name"
-      [[ "${TYPE}" == "extension" || "${TYPE}" == "zend_extension" ]] \
-        || fail "runtime ${PHP} extension ${NAME} has invalid type ${TYPE}"
-      [[ -n "${FILE}" ]] || fail "runtime ${PHP} extension ${NAME} is missing file"
-    done < <(jq -c '.extensions[]' <<<"${entry}")
   fi
 
   if [[ ! "${PHP}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -166,25 +140,9 @@ while IFS= read -r entry; do
   done
 done < <(jq -c '.runtimes[]' "${MANIFEST}")
 
-# Profile names must be non-empty; profile extensions must exist in the catalog runtime set.
+# Profile names must be non-empty; profile extensions must exist in the catalog.
 CATALOG_EXTENSIONS="$(jq -r '.runtimes[0].extensions[] | if type == "string" then . else .name end' "${MANIFEST}")"
-CATALOG_ZEND_EXTENSIONS="$(jq -r '.runtimes[0].extensions[] | select(type != "string" and .type == "zend_extension") | .name' "${MANIFEST}")"
-# For static builds, xdebug (and similar) may be declared in the "debug" profile as zend
-# even if not bundled in the catalog (SPC limitation for static). Allow them.
-if [[ -z "${CATALOG_ZEND_EXTENSIONS}" ]]; then
-  CATALOG_ZEND_EXTENSIONS=$'xdebug\nopcache'
-fi
-PROFILE_NAMES="$(jq -r '.profiles[]?.name' "${MANIFEST}")"
-if [[ "${SCHEMA}" == "3.0" ]]; then
-  for required_profile in minimal dev debug; do
-    if ! grep -Fxq "${required_profile}" <<<"${PROFILE_NAMES}"; then
-      fail "schema 3.0 profiles must include ${required_profile}"
-    fi
-  done
-  if ! grep -Fxq "${DEFAULT_PROFILE}" <<<"${PROFILE_NAMES}"; then
-    fail "default_profile ${DEFAULT_PROFILE} is not a known profile"
-  fi
-fi
+
 while IFS= read -r profile; do
   PROFILE_NAME="$(jq -r '.name' <<<"${profile}")"
   [[ -n "${PROFILE_NAME}" ]] || fail "profile has empty name"
@@ -198,8 +156,8 @@ while IFS= read -r profile; do
 
   while IFS= read -r ext; do
     [[ -n "${ext}" ]] || continue
-    if ! grep -Fxq "${ext}" <<<"${CATALOG_ZEND_EXTENSIONS}"; then
-      fail "profile ${PROFILE_NAME} zend_extension '${ext}' is not in runtime catalog zend extensions"
+    if ! grep -Fxq "${ext}" <<<"${CATALOG_EXTENSIONS}"; then
+      fail "profile ${PROFILE_NAME} zend_extension '${ext}' is not in runtime catalog extensions"
     fi
   done < <(jq -r '.zend_extensions[]?' <<<"${profile}")
 done < <(jq -c '.profiles[]' "${MANIFEST}")

@@ -24,12 +24,18 @@ Each version is built for two target triples:
 
 | Target | Platform | Minimum host |
 |---|---|---|
-| `x86_64-unknown-linux-gnu` | Linux x86_64 (glibc) | See `metadata/runtime.json` `linux_compatibility.required_glibc` |
+| `x86_64-unknown-linux-gnu` | Linux x86_64 | Any modern Linux (static musl binary — no glibc dependency) |
 | `aarch64-apple-darwin` | macOS Apple Silicon | macOS 12+ |
 
 That is **8 tarballs** per catalog release (4 PHP versions × 2 platforms).
 
-Runtimes are static binaries built with StaticPHP (SPC). Manifest v2.1 `artifacts` provide per-platform URLs. Profiles (`minimal`, `dev`, `debug`) are starter templates for phpvm (the full set of common extensions is compiled in for the `dev` profile). `dev` is the default profile.
+Runtimes are fully static binaries built with StaticPHP (SPC). Manifest v2.1 `artifacts` provide per-platform URLs. Profiles (`minimal`, `dev`, `debug`) are starter templates for phpvm, all derived from `builds/common/extensions.json`:
+
+- **`minimal`** — bare essentials (`openssl`, `phar`, `mbstring`)
+- **`dev`** *(default)* — common web development extensions (MySQL, Redis, GD, bcmath, exif, sodium, pcntl, and more)
+- **`debug`** — every catalog extension enabled (maximal)
+
+All catalog extensions are compiled into every binary regardless of profile — profiles only control which ones are documented as recommended defaults. The full catalog (43 extensions) includes `bcmath`, `bz2`, `exif`, `ffi`, `ftp`, `gettext`, `gmp`, `imagick`, `ldap`, `memcached`, `pcntl`, `pdo_pgsql`, `pgsql`, `posix`, `redis`, `sodium`, `xsl`, `yaml`, and more alongside the core set.
 
 **Not in v1:** macOS Intel, Linux ARM64, Windows.
 
@@ -48,7 +54,7 @@ manifest_url = "https://raw.githubusercontent.com/moyerdestroyer/phpvm-runtimes/
 phpvm install 8.3          # latest 8.3.x patch from the manifest
 phpvm run 8.3 php -v
 phpvm run 8.3 composer -V
-phpvm profile use debug
+phpvm profile use debug  # enable all catalog extensions
 ```
 
 Install specifiers like `8.3`, `8.3.latest`, or an exact patch (e.g. `8.3.31`) resolve against `manifest.json`. Only the latest patch per minor line is hosted; older patches work only if already installed locally.
@@ -86,7 +92,7 @@ Example: `php-8.3.31-x86_64-unknown-linux-gnu.tar.gz`
 Runtimes are compiled with [StaticPHP](https://static-php.dev/) (`spc` v3) from craft recipes under `builds/`. Extension lists live in one place:
 
 ```text
-builds/common/extensions.json   # catalog + spc extension sets (ensure common extensions are in "catalog" for the dev profile)
+builds/common/extensions.json   # catalog + dev/minimal profiles + spc extension set (single source of truth)
 builds/common/composer-version.txt
 builds/common/spc-pin.json      # pinned spc binary checksums
 builds/8.3.31/craft.yml        # generated recipe per PHP version
@@ -188,7 +194,7 @@ See [AGENTS.md](AGENTS.md) for the full checklist and [docs/phpvm-runtimes.md](d
 ## Design constraints
 
 - One runtime archive per PHP version and target — not per profile.
-- Profiles (`minimal`/`dev`/`debug`) are documented in the manifest for phpvm; the static binary includes the common extensions for `dev`.
+- - Profiles (`minimal`/`dev`/`debug`) are derived from `extensions.json` and documented in the manifest for phpvm. The `dev` profile is a curated subset; `debug` enables the full catalog. All extensions are always compiled into the binary regardless of profile.
 - One runtime row per **minor line** in the manifest (latest patch only).
 - Do not mix phpvm CLI releases with phpvm-runtimes catalog releases.
 - Do not commit `.tar.gz` binaries to this repository.

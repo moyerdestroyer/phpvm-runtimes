@@ -47,8 +47,11 @@ cd "${CRAFT_DIR}"
 echo "building with ${SPC_BIN} in ${CRAFT_DIR} (expect PHP ${EXPECTED_PHP})"
 
 ensure_frankenphp_source_link() {
-  # SPC v3.0.0-alpha1 applies a PHP AVX512 patch against source/frankenphp
-  # when building cli-only. Symlink until upstream fixes getSourceDir() in unix.php.
+  # Workaround for SPC v3.0.0-alpha1: when building cli-only, the AVX512
+  # patch is applied against source/frankenphp which doesn't exist for
+  # plain CLI builds. Symlink source/php-src → source/frankenphp so the
+  # patch target resolves. Remove this once upstream SPC fixes
+  # getSourceDir() in unix.php (track: crazywhalecc/static-php-cli).
   if [[ ! -e "${CRAFT_DIR}/source/frankenphp" && -d "${CRAFT_DIR}/source/php-src" ]]; then
     ln -s php-src "${CRAFT_DIR}/source/frankenphp"
     echo "created source/frankenphp -> php-src compatibility symlink"

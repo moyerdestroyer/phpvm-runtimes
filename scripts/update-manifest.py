@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Inject release URLs, SHA-256 checksums, and runtime metadata into manifest.json."""
+"""Inject release URLs, SHA-256 checksums, and runtime metadata into manifest.json.
+
+Reads profile definitions from builds/common/extensions.json so that the
+manifest profiles and runtime extension lists are always derived from the
+single source of truth.
+"""
 
 from __future__ import annotations
 
@@ -8,49 +13,16 @@ import hashlib
 import json
 import re
 import sys
-import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 TARGETS = (
     "x86_64-unknown-linux-gnu",
     "aarch64-apple-darwin",
 )
 
-ZEND_EXTENSIONS = frozenset({"opcache", "xdebug"})
+ZEND_EXTENSIONS = frozenset({"opcache"})
 DEFAULT_PROFILE = "dev"
-MINIMAL_EXTENSIONS = ["openssl", "phar", "mbstring"]
-DEV_EXTENSIONS = [
-    "openssl",
-    "phar",
-    "mbstring",
-    "curl",
-    "dom",
-    "fileinfo",
-    "gd",
-    "intl",
-    "mysqli",
-    "pdo",
-    "pdo_mysql",
-    "pdo_sqlite",
-    "session",
-    "simplexml",
-    "sockets",
-    "sqlite3",
-    "tokenizer",
-    "xml",
-    "xmlreader",
-    "xmlwriter",
-    "zip",
-    "zlib",
-]
-PROFILES = [
-    {"name": "minimal", "extensions": MINIMAL_EXTENSIONS},
-    {"name": "dev", "extensions": DEV_EXTENSIONS},
-    {"name": "debug", "extensions": DEV_EXTENSIONS, "zend_extensions": ["xdebug"]},
-]
-DEFAULT_EXTENSIONS = frozenset(DEV_EXTENSIONS)
 ARCHIVE_RE = re.compile(r"^php-(?P<version>\d+\.\d+\.\d+)-(?P<target>.+)\.tar\.gz$")
 
 
@@ -80,39 +52,29 @@ def release_url(github_repo: str, catalog_tag: str, filename: str) -> str:
     )
 
 
-def inspect_dynamic_archive(archive: Path) -> tuple[dict, list[dict]]:
-    with TemporaryDirectory() as tmp:
-        with tarfile.open(archive, "r:gz") as tar:
-            tar.extractall(tmp, filter="data")
+def load_extensions_json(root: Path) -> dict:
+    ext_path = root / "builds" / "common" / "extensions.json"
+    if not ext_path.is_file():
+        print(f"error: {ext_path} not found", file=sys.stderr)
+        sys.exit(1)
+    return json.loads(ext_path.read_text(encoding="utf-8"))
 
-        root = next(Path(tmp).iterdir())
-        metadata_path = root / "metadata" / "runtime.json"
-        profiles_path = root / "etc" / "profiles" / "profiles.json"
-        ext_dir = root / "ext"
-        if not metadata_path.is_file() or not ext_dir.is_dir():
-            raise ValueError(f"{archive.name} is not a dynamic runtime bundle")
 
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        if profiles_path.is_file():
-            metadata["profiles"] = json.loads(profiles_path.read_text(encoding="utf-8"))
-        extensions: list[dict] = []
-        for ext_file in sorted(ext_dir.glob("*.so")) + sorted(ext_dir.glob("*.dylib")):
-            name = ext_file.stem
-            ext_type = "zend_extension" if name in ZEND_EXTENSIONS else "extension"
-            extensions.append(
-                {
-                    "name": name,
-                    "type": ext_type,
-                    "bundled": True,
-                    "default": name in DEFAULT_EXTENSIONS,
-                    "file": f"ext/{ext_file.name}",
-                }
-            )
+def build_profiles(ext_json: dict) -> list[dict]:
+    """Derive all three profiles from extensions.json.
 
-        if not extensions:
-            raise ValueError(f"{archive.name} has no loadable extensions")
-
-        return metadata, extensions
+    minimal -> minimal_profile subset
+    dev     -> dev_profile subset
+    debug   -> entire catalog (every compiled-in extension enabled)
+    """
+    catalog = ext_json["catalog"]
+    dev = ext_json["dev_profile"]
+    minimal = ext_json["minimal_profile"]
+    return [
+        {"name": "minimal", "extensions": minimal},
+        {"name": "dev", "extensions": dev},
+        {"name": "debug", "extensions": catalog},
+    ]
 
 
 def main() -> int:
@@ -150,6 +112,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    root = Path(__file__).resolve().parent.parent
+
     if not args.manifest.is_file():
         print(f"error: manifest not found: {args.manifest}", file=sys.stderr)
         return 1
@@ -162,24 +126,39 @@ def main() -> int:
         print(f"error: no php-*.tar.gz files in {args.assets_dir}", file=sys.stderr)
         return 1
 
+    ext_json = load_extensions_json(root)
+    catalog_extensions = ext_json["catalog"]
+    profiles = build_profiles(ext_json)
+
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    manifest["schema"] = "2.1"
     manifest["catalog_tag"] = args.catalog_tag
     manifest["published_at"] = args.published_at or datetime.now(timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
     manifest["default_profile"] = DEFAULT_PROFILE
-    manifest["profiles"] = PROFILES
+    manifest["profiles"] = profiles
 
     runtimes = manifest.get("runtimes", [])
     expected = len(runtimes) * len(TARGETS)
     updated = 0
-    dynamic = False
 
     for runtime in runtimes:
         php = runtime.get("php", "")
         if not php:
             print("error: runtime row missing php version", file=sys.stderr)
             return 1
+
+        # Static runtime metadata.
+        runtime["runtime_type"] = "static"
+        runtime["thread_safety"] = "nts"
+        runtime["default_profile"] = DEFAULT_PROFILE
+        runtime["extensions"] = list(catalog_extensions)
+
+        # Remove stale dynamic-era fields that are meaningless for static
+        # musl builds (no glibc dependency; ABI fields were dynamic-inspected).
+        for stale in ("abi", "extension_api", "zend_extension_api", "linux_compatibility"):
+            runtime.pop(stale, None)
 
         artifacts = runtime.setdefault("artifacts", {})
         for target in TARGETS:
@@ -199,35 +178,6 @@ def main() -> int:
             updated += 1
             print(f"updated {php} / {target} <- {archive.name}")
 
-        linux_archive = assets.get((php, "x86_64-unknown-linux-gnu"))
-        if linux_archive is None:
-            print(
-                f"error: missing Linux tarball for runtime metadata: {php}",
-                file=sys.stderr,
-            )
-            return 1
-
-        try:
-            metadata, extensions = inspect_dynamic_archive(linux_archive)
-        except ValueError as exc:
-            runtime["runtime_type"] = "static"
-            runtime["extensions"] = runtime.get("extensions", [])
-            continue
-
-        dynamic = True
-        runtime["runtime_type"] = metadata.get("runtime_type", "dynamic")
-        runtime["thread_safety"] = metadata.get("thread_safety", "nts")
-        runtime["abi"] = metadata["abi"]
-        runtime["extension_api"] = metadata["extension_api"]
-        runtime["zend_extension_api"] = metadata["zend_extension_api"]
-        runtime["default_profile"] = metadata.get("default_profile", DEFAULT_PROFILE)
-        if "linux_compatibility" in metadata:
-            runtime["linux_compatibility"] = metadata["linux_compatibility"]
-        runtime["extensions"] = extensions
-        print(f"updated {php} runtime metadata from {linux_archive.name}")
-
-    manifest["schema"] = "3.0" if dynamic else "2.1"
-
     if updated != expected:
         print(
             f"error: updated {updated} of {expected} required artifacts",
@@ -241,7 +191,8 @@ def main() -> int:
     else:
         args.manifest.write_text(output, encoding="utf-8")
         print(
-            f"wrote {args.manifest} ({updated} artifacts, schema {manifest['schema']})"
+            f"wrote {args.manifest} ({updated} artifacts, "
+            f"{len(catalog_extensions)} extensions, schema {manifest['schema']})"
         )
 
     return 0
