@@ -74,6 +74,9 @@ jobs:
             gh issue edit "${EXISTING}" --title "${TITLE}" --body "${BODY}"
             echo "Updated existing issue #${EXISTING}"
           else
+            gh label create "php-update" \
+              --description "PHP runtime catalog update available" \
+              --color "0e8a16" 2>/dev/null || true
             gh issue create --title "${TITLE}" --body "${BODY}" --label "php-update"
             echo "Created new issue"
           fi
