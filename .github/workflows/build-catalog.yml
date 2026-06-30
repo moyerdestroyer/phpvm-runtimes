@@ -1,4 +1,4 @@
-# Build all 8 catalog tarballs (4 PHP versions × 2 platforms).
+# Build the planned catalog tarballs (4 PHP versions × 2 platforms).
 name: build-catalog
 
 on:
@@ -8,27 +8,37 @@ permissions:
   contents: read
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Plan catalog
+        id: plan
+        run: |
+          set -euo pipefail
+          scripts/plan-catalog-update.py > plan.json
+          cat plan.json
+          echo "matrix=$(jq -c '.matrix' plan.json)" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload catalog plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-plan
+          path: plan.json
+          if-no-files-found: error
+          retention-days: 30
+
   build:
+    needs: plan
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - php_version: "8.1.34"
-            target: x86_64-unknown-linux-gnu
-          - php_version: "8.1.34"
-            target: aarch64-apple-darwin
-          - php_version: "8.2.31"
-            target: x86_64-unknown-linux-gnu
-          - php_version: "8.2.31"
-            target: aarch64-apple-darwin
-          - php_version: "8.3.31"
-            target: x86_64-unknown-linux-gnu
-          - php_version: "8.3.31"
-            target: aarch64-apple-darwin
-          - php_version: "8.4.22"
-            target: x86_64-unknown-linux-gnu
-          - php_version: "8.4.22"
-            target: aarch64-apple-darwin
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
 
     uses: ./.github/workflows/build-runtime-reusable.yml
     with:
@@ -36,16 +46,31 @@ jobs:
       target: ${{ matrix.target }}
 
   collect:
-    needs: build
+    needs:
+      - plan
+      - build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Download all runtime artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: php-*
           path: dist
           merge-multiple: true
+
+      - name: Download catalog plan
+        uses: actions/download-artifact@v4
+        with:
+          name: catalog-plan
+          path: .
+
+      - name: Apply planned manifest rows
+        run: python3 scripts/apply-catalog-plan.py --plan plan.json
 
       - name: Verify full catalog asset set
         run: scripts/verify-catalog-assets.sh dist

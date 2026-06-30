@@ -69,6 +69,9 @@ jobs:
           echo "MACOSX_DEPLOYMENT_TARGET=12.0" >> "${GITHUB_ENV}"
           echo "PHPVM_BUILD_JOBS=$(sysctl -n hw.ncpu)" >> "${GITHUB_ENV}"
 
+      - name: Render craft recipe
+        run: scripts/render-craft.sh "builds/${{ inputs.php_version }}"
+
       - name: Cache SPC binary
         id: cache-spc
         uses: actions/cache@v4

@@ -1,5 +1,5 @@
-# Weekly check for new PHP patch releases. Opens or updates an issue when a
-# newer patch is available than what is in manifest.json.
+# Weekly check for PHP catalog changes. Opens or updates an issue when
+# manifest.json differs from the planned latest supported catalog.
 name: check-php-updates
 
 on:
@@ -27,11 +27,13 @@ jobs:
         run: |
           set -euo pipefail
           OUTPUT="$(scripts/check-php-updates.sh manifest.json 2>/dev/null || true)"
-          echo "output<<EOF" >> "${GITHUB_OUTPUT}"
-          echo "${OUTPUT}" >> "${GITHUB_OUTPUT}"
-          echo "EOF" >> "${GITHUB_OUTPUT}"
+          {
+            echo "output<<EOF"
+            echo "${OUTPUT}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
 
-          if echo "${OUTPUT}" | grep -q '^UPDATE'; then
+          if echo "${OUTPUT}" | grep -Eq '^(UPDATE|ADD|REMOVE)'; then
             echo "has_updates=true" >> "${GITHUB_OUTPUT}"
           else
             echo "has_updates=false" >> "${GITHUB_OUTPUT}"
@@ -43,13 +45,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TITLE="PHP patch updates available"
+          TITLE="PHP catalog updates available"
           EXISTING="$(gh issue list --state open --search "${TITLE} in:title" --json number --limit 1 -q '.[0].number // empty')"
 
           BODY="$(cat <<'ISSUE_EOF'
-          ## PHP patch updates available
+          ## PHP catalog updates available
 
-          The following PHP versions in `manifest.json` have newer patches available on php.net:
+          The following catalog changes are available from php.net:
 
           ```
           UPDATES_HERE
@@ -57,17 +59,15 @@ jobs:
 
           ### Rotation steps
 
-          1. Build new tarballs (Linux locally, macOS via Actions).
-          2. Update `builds/<new-version>/` recipe dir.
-          3. Run `scripts/prepare-catalog.sh --catalog-tag catalog-YYYY-MM-DD`.
-          4. Commit `manifest.json` and publish the catalog release.
+          The `auto-catalog-rotation.yml` workflow can build the planned catalog,
+          open the manifest/recipe PR, and create a draft release automatically.
 
           See [AGENTS.md](../blob/master/AGENTS.md) for the full checklist.
           ISSUE_EOF
           )"
 
           # Inject actual update lines
-          UPDATES="$(echo "${{ steps.check.outputs.output }}" | grep '^UPDATE')"
+          UPDATES="$(echo "${{ steps.check.outputs.output }}" | grep -E '^(UPDATE|ADD|REMOVE)')"
           BODY="${BODY/UPDATES_HERE/${UPDATES}}"
 
           if [[ -n "${EXISTING}" ]]; then
@@ -84,7 +84,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TITLE="PHP patch updates available"
+          TITLE="PHP catalog updates available"
           EXISTING="$(gh issue list --state open --search "${TITLE} in:title" --json number --limit 1 -q '.[0].number // empty')"
           if [[ -n "${EXISTING}" ]]; then
             gh issue close "${EXISTING}" --comment "All PHP versions are current. Closing."

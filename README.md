@@ -27,7 +27,7 @@ Each version is built for two target triples:
 | `x86_64-unknown-linux-gnu` | Linux x86_64 | Any modern Linux (static musl binary — no glibc dependency) |
 | `aarch64-apple-darwin` | macOS Apple Silicon | macOS 12+ |
 
-That is **8 tarballs** per catalog release (4 PHP versions × 2 platforms).
+That is currently **8 tarballs** per catalog release (4 PHP versions × 2 platforms).
 
 Runtimes are fully static binaries built with StaticPHP (SPC). Manifest v2.1 `artifacts` provide per-platform URLs. Profiles (`minimal`, `dev`, `debug`) are starter templates for phpvm, all derived from `builds/common/extensions.json`:
 
@@ -132,7 +132,7 @@ scripts/build-runtime-local.sh 8.3.31
 # → dist/php-8.3.31-<host-target>.tar.gz
 ```
 
-Both Linux and macOS Apple Silicon catalog builds are produced via StaticPHP. Use the GitHub Actions `build-catalog.yml` (or `build-runtime.yml`) for the official matrix. Local Linux builds use `scripts/setup-linux-build-deps.sh` + the build script; macOS uses Homebrew build tools + the same.
+Both Linux and macOS Apple Silicon catalog builds are produced via StaticPHP. Use `auto-catalog-rotation.yml` for scheduled release rotation, or `build-catalog.yml` / `build-runtime.yml` for manual builds. Local Linux builds use `scripts/setup-linux-build-deps.sh` + the build script; macOS uses Homebrew build tools + the reusable workflow.
 
 ---
 
@@ -140,15 +140,16 @@ Both Linux and macOS Apple Silicon catalog builds are produced via StaticPHP. Us
 
 Typical rotation flow:
 
-1. **Build** changed tarballs — locally or via `build-catalog.yml` in Actions.
-2. **Stage** all 8 tarballs in `dist/` (reuse unchanged ones from a previous release when only one PHP line changed).
-3. **Prepare** the manifest:
+1. **Prefer automation** — dispatch or wait for `auto-catalog-rotation.yml`; it plans php.net updates, builds both targets, opens the manifest/recipe PR, and creates a draft release.
+2. **Build manually if needed** — locally or via `build-catalog.yml` in Actions.
+3. **Stage** all catalog tarballs in `dist/` (reuse unchanged ones from a previous release when only one PHP line changed).
+4. **Prepare** the manifest:
    ```bash
    scripts/prepare-catalog.sh --catalog-tag catalog-2026-06-13
    ```
-4. **Commit** the updated `manifest.json` to the default branch.
-5. **Publish** — dispatch `publish-catalog.yml` with the **same** `catalog_tag` and the `build-catalog` run ID. The workflow verifies tarball checksums match the manifest before creating a draft release.
-6. **Review** the draft on GitHub, then publish it.
+5. **Commit** the updated `manifest.json` and `builds/<version>/` recipes to the default branch.
+6. **Publish** — dispatch `publish-catalog.yml` with the **same** `catalog_tag` and the `build-catalog` run ID. The workflow verifies tarball checksums match the manifest before creating a draft release.
+7. **Review** the draft on GitHub, then publish it.
 
 Patch-only rotation with reused tarballs:
 
@@ -175,8 +176,10 @@ See [AGENTS.md](AGENTS.md) for the full checklist and [docs/phpvm-runtimes.md](d
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | `validate.yml` | push / PR | Script syntax, manifest schema, recipe drift |
+| `auto-catalog-rotation.yml` | schedule / manual | Detect php.net changes, build catalog, open PR, create draft release |
+| `check-php-updates.yml` | schedule / manual | Open/update an issue for planned catalog changes |
 | `build-runtime.yml` | manual | Build one static runtime (any target) |
-| `build-catalog.yml` | manual | Build all 8 catalog tarballs (static) |
+| `build-catalog.yml` | manual | Build the planned catalog tarballs (static) |
 | `publish-catalog.yml` | manual | Validate manifest + tarballs, create draft release |
 
 ---

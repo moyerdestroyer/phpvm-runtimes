@@ -20,6 +20,8 @@ The **phpvm** repo ships the CLI. **phpvm-runtimes** ships PHP+Composer trees an
 
 When PHP `8.3.32` replaces `8.3.31`, update the manifest entry and replace the two `8.3.32` assets. Delete or expire `8.3.31` assets to save space.
 
+When php.net publishes a new supported minor line, the catalog keeps a fixed size: add the new minor line and remove the oldest published minor line.
+
 Users install with specifiers like `8.3`, `8.3.latest`, or the exact patch `8.3.31`. Exact patches not in the manifest fail fresh install by design.
 
 ---
@@ -57,6 +59,9 @@ phpvm-runtimes/
 │
 ├── scripts/
 │   ├── build-runtime-local.sh    # Build/package one host runtime end-to-end
+│   ├── plan-catalog-update.py    # Plan latest supported PHP catalog from php.net
+│   ├── apply-catalog-plan.py     # Apply planned runtime rows to manifest.json
+│   ├── sync-runtime-recipes.sh   # Sync builds/<version>/ dirs from a plan
 │   ├── prepare-catalog.sh        # Update manifest from a complete asset set
 │   ├── package-runtime.sh        # Validate tree → tar.gz + sha256
 │   ├── update-manifest.py        # Inject urls/checksums, derive profiles from extensions.json
@@ -67,9 +72,10 @@ phpvm-runtimes/
 └── .github/
     └── workflows/
         ├── validate.yml            # PR/push: script + manifest checks
-        ├── check-php-updates.yml   # Weekly: detect new PHP patches
+        ├── auto-catalog-rotation.yml # Weekly/manual: build PR + draft release
+        ├── check-php-updates.yml   # Weekly: detect planned catalog changes
         ├── build-runtime.yml       # Manual: 1 version x 1 target
-        ├── build-catalog.yml       # Manual: all 8 catalog tarballs
+        ├── build-catalog.yml       # Manual: planned catalog tarballs
         └── publish-catalog.yml     # Validate manifest, create draft release
 ```
 
@@ -128,7 +134,7 @@ Use a **catalog release** per publish (not one release per PHP patch forever):
 
 | Approach | Tag example | Assets |
 |---|---|---|
-| **Rolling catalog** (simplest) | `catalog` or `catalog-2026-06-16` | All 8 tarballs + `manifest.json` |
+| **Rolling catalog** (simplest) | `catalog` or `catalog-2026-06-16` | All current tarballs + `manifest.json` |
 | Per PHP version | `php-8.3.31` | 2 tarballs for that version only |
 
 **Recommended for v1:** tag `catalog-YYYY-MM-DD`, attach **all current tarballs + `manifest.json`**, set manifest URLs to:
@@ -246,21 +252,22 @@ Suggested tooling: [static-php-cli](https://github.com/crazywhalecc/static-php-c
 
 ## Publish checklist
 
-1. **Build** changed tarballs (Linux locally via `build-runtime-local.sh` + deps setup, or use `build-catalog.yml` / `build-runtime.yml` Actions for the matrix).
-2. **Verify** each tarball: `bin/php -v`, `bin/composer -V`, `php -m` matches the catalog in `extensions.json` (via `verify-extensions.sh` inside packaging).
-3. **Stage** a complete 8-tarball asset set in `dist/`, reusing unchanged tarballs from the previous catalog when only one PHP line changed.
-4. **Run** `scripts/prepare-catalog.sh --catalog-tag catalog-YYYY-MM-DD` (it re-renders craft files and lets `update-manifest.py` produce schema 2.1 + static metadata + profiles derived from extensions.json).
-5. **Confirm** `scripts/verify-manifest.sh --strict` and `scripts/verify-manifest-assets.sh dist` pass.
-6. **Commit** `manifest.json` to the default branch (`master`) on phpvm-runtimes.
-7. **Create** GitHub Release `catalog-YYYY-MM-DD` with `publish-catalog.yml` (use the **same** `catalog_tag` as step 4) or upload manually; the workflow verifies tarball checksums match the committed manifest.
-8. **Smoke test** on each OS:
+1. **Prefer automation**: run or wait for `auto-catalog-rotation.yml`; it plans php.net patch/new-minor changes, builds both targets, opens the manifest/recipe PR, and creates a draft release.
+2. **Build manually if needed** (Linux locally via `build-runtime-local.sh` + deps setup, or use `build-catalog.yml` / `build-runtime.yml` Actions for the matrix).
+3. **Verify** each tarball: `bin/php -v`, `bin/composer -V`, `php -m` matches the catalog in `extensions.json` (via `verify-extensions.sh` inside packaging).
+4. **Stage** a complete catalog asset set in `dist/`, reusing unchanged tarballs from the previous catalog when only one PHP line changed.
+5. **Run** `scripts/prepare-catalog.sh --catalog-tag catalog-YYYY-MM-DD` (it re-renders craft files and lets `update-manifest.py` produce schema 2.1 + static metadata + profiles derived from extensions.json).
+6. **Confirm** `scripts/verify-manifest.sh --strict` and `scripts/verify-manifest-assets.sh dist` pass.
+7. **Commit** `manifest.json` and changed `builds/<version>/` recipe dirs to the default branch (`master`) on phpvm-runtimes.
+8. **Create** GitHub Release `catalog-YYYY-MM-DD` with `publish-catalog.yml` (use the **same** `catalog_tag` as step 5) or upload manually; the workflow verifies tarball checksums match the committed manifest.
+9. **Smoke test** on each OS:
    ```bash
    phpvm install 8.3
    phpvm run 8.3 php -v
    phpvm profile use debug
    phpvm doctor
    ```
-9. **Prune** previous catalog release assets if you need GitHub storage headroom (optional; old local installs unaffected).
+10. **Prune** previous catalog release assets if you need GitHub storage headroom (optional; old local installs unaffected).
 
 ---
 

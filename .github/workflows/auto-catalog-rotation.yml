@@ -1,0 +1,204 @@
+# Detect PHP releases, build the planned catalog, open a PR, and create a draft release.
+name: auto-catalog-rotation
+
+on:
+  schedule:
+    # Mondays 14:00 UTC
+    - cron: "0 14 * * 1"
+  workflow_dispatch:
+    inputs:
+      catalog_tag:
+        description: Optional release tag (default catalog-YYYY-MM-DD)
+        required: false
+        type: string
+        default: ""
+      force:
+        description: Rebuild even when no PHP update is detected
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: Build and verify without pushing a PR or draft release
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      catalog_tag: ${{ steps.plan.outputs.catalog_tag }}
+      has_update: ${{ steps.plan.outputs.has_update }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Plan catalog rotation
+        id: plan
+        run: |
+          set -euo pipefail
+
+          CATALOG_TAG="${{ github.event.inputs.catalog_tag }}"
+          if [[ -z "${CATALOG_TAG}" ]]; then
+            CATALOG_TAG="catalog-$(date -u +%F)"
+          fi
+
+          scripts/plan-catalog-update.py > plan.json
+          cat plan.json
+
+          {
+            echo "catalog_tag=${CATALOG_TAG}"
+            echo "has_update=$(jq -r '.has_update' plan.json)"
+            echo "matrix=$(jq -c '.matrix' plan.json)"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Upload catalog plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-plan
+          path: plan.json
+          if-no-files-found: error
+          retention-days: 30
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.has_update == 'true' || github.event.inputs.force == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    uses: ./.github/workflows/build-runtime-reusable.yml
+    with:
+      php_version: ${{ matrix.php_version }}
+      target: ${{ matrix.target }}
+
+  prepare:
+    needs:
+      - plan
+      - build
+    if: needs.plan.outputs.has_update == 'true' || github.event.inputs.force == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Download runtime artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: php-*
+          path: dist
+          merge-multiple: true
+
+      - name: Download catalog plan
+        uses: actions/download-artifact@v4
+        with:
+          name: catalog-plan
+          path: .
+
+      - name: Apply plan and prepare manifest
+        run: |
+          set -euo pipefail
+          python3 scripts/apply-catalog-plan.py \
+            --plan plan.json \
+            --github-repo "${GITHUB_REPOSITORY}"
+          scripts/sync-runtime-recipes.sh --plan plan.json
+          scripts/prepare-catalog.sh \
+            --catalog-tag "${{ needs.plan.outputs.catalog_tag }}" \
+            --github-repo "${GITHUB_REPOSITORY}"
+
+      - name: Upload prepared catalog
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepared-catalog
+          path: |
+            plan.json
+            manifest.json
+            dist/php-*.tar.gz
+            dist/php-*.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Open or update catalog PR
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CATALOG_TAG: ${{ needs.plan.outputs.catalog_tag }}
+        run: |
+          set -euo pipefail
+
+          BRANCH="automation/${CATALOG_TAG}"
+          TITLE="Update phpvm runtime catalog ${CATALOG_TAG}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "${BRANCH}:refs/remotes/origin/${BRANCH}" || true
+          git checkout -B "${BRANCH}"
+          git add manifest.json builds
+
+          if git diff --cached --quiet; then
+            echo "No manifest or recipe changes to commit"
+          else
+            git commit -m "${TITLE}"
+            git push --force-with-lease origin "HEAD:${BRANCH}"
+          fi
+
+          BODY="$(mktemp)"
+          {
+            echo "Automated catalog rotation for \`${CATALOG_TAG}\`."
+            echo
+            echo "Desired versions:"
+            jq -r '.desired_versions[] | "- `" + . + "`"' plan.json
+            echo
+            echo "Updated lines:"
+            jq -r '
+              if (.updated | length) == 0 then
+                "- none"
+              else
+                .updated[] | "- `" + .from + "` -> `" + .to + "`"
+              end
+            ' plan.json
+            echo
+            echo "Added:"
+            jq -r 'if (.added | length) == 0 then "- none" else .added[] | "- `" + . + "`" end' plan.json
+            echo
+            echo "Removed:"
+            jq -r 'if (.removed | length) == 0 then "- none" else .removed[] | "- `" + . + "`" end' plan.json
+            echo
+            echo "The workflow built all planned tarballs, updated \`manifest.json\`, and verified strict manifest/assets checks."
+          } > "${BODY}"
+
+          EXISTING="$(gh pr list --state open --head "${BRANCH}" --json number --limit 1 -q '.[0].number // empty')"
+          if [[ -n "${EXISTING}" ]]; then
+            gh pr edit "${EXISTING}" --title "${TITLE}" --body-file "${BODY}"
+            echo "Updated PR #${EXISTING}"
+          else
+            gh pr create \
+              --title "${TITLE}" \
+              --body-file "${BODY}" \
+              --head "${BRANCH}" \
+              --base "${{ github.event.repository.default_branch }}"
+          fi
+
+      - name: Create or update draft release
+        if: github.event.inputs.dry_run != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.plan.outputs.catalog_tag }}
+          name: ${{ needs.plan.outputs.catalog_tag }}
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            manifest.json
+            dist/php-*.tar.gz
+            dist/php-*.tar.gz.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

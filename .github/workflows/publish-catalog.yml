@@ -72,7 +72,7 @@ jobs:
 
       - name: Verify catalog tarballs
         run: |
-          if [[ -d dist && "$(ls -A dist/php-*.tar.gz 2>/dev/null | wc -l)" -gt 0 ]]; then
+          if [[ -d dist && "$(find dist -maxdepth 1 -name 'php-*.tar.gz' -type f | wc -l)" -gt 0 ]]; then
             if [[ "${{ inputs.strict_manifest }}" == "true" ]]; then
               scripts/verify-manifest-assets.sh dist manifest.json
             else
