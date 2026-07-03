@@ -23,7 +23,7 @@ Official catalog automation builds both Linux x86_64 and Apple Silicon runtimes 
 
 ## Automatic catalog rotation
 
-`auto-catalog-rotation.yml` runs weekly and can also be dispatched manually. It:
+`auto-catalog-rotation.yml` runs every two days and can also be dispatched manually. It:
 
 1. Plans the desired catalog from php.net release metadata.
 2. Keeps a fixed catalog size by adding new PHP minor lines and dropping the oldest line.
@@ -62,8 +62,8 @@ scripts/verify-manifest.sh --strict
 | Workflow | Purpose |
 |---|---|
 | `validate.yml` | PR/push: script syntax, manifest schema, recipe drift |
-| `auto-catalog-rotation.yml` | Weekly/manual: plan PHP updates, build assets, open PR, create draft release |
-| `check-php-updates.yml` | Weekly: detect planned PHP catalog changes, open issue if found |
+| `auto-catalog-rotation.yml` | Every 2 days/manual: plan PHP updates, build assets, open PR, create draft release |
+| `check-php-updates.yml` | Every 2 days: detect planned PHP catalog changes, open issue if found |
 | `build-runtime.yml` | Manual: build one PHP version × one target (static via SPC) |
 | `build-catalog.yml` | Manual: build the planned catalog tarballs (static via SPC for both platforms) |
 | `publish-catalog.yml` | Manual: attach artifacts + `manifest.json` to a catalog release |

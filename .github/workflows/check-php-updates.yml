@@ -1,11 +1,11 @@
-# Weekly check for PHP catalog changes. Opens or updates an issue when
+# Check for PHP catalog changes every two days. Opens or updates an issue when
 # manifest.json differs from the planned latest supported catalog.
 name: check-php-updates
 
 on:
   schedule:
-    # Mondays 14:00 UTC
-    - cron: "0 14 * * 1"
+    # Every 2 days at 14:00 UTC (1st, 3rd, 5th, ...)
+    - cron: "0 14 */2 * *"
   workflow_dispatch:
 
 permissions:

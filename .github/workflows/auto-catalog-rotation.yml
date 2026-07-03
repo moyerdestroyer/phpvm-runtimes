@@ -3,8 +3,8 @@ name: auto-catalog-rotation
 
 on:
   schedule:
-    # Mondays 14:00 UTC
-    - cron: "0 14 * * 1"
+    # Every 2 days at 14:00 UTC (1st, 3rd, 5th, ...)
+    - cron: "0 14 */2 * *"
   workflow_dispatch:
     inputs:
       catalog_tag:
