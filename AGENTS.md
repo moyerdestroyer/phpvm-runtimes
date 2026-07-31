@@ -64,6 +64,7 @@ scripts/verify-manifest.sh --strict
 | `validate.yml` | PR/push: script syntax, manifest schema, recipe drift |
 | `auto-catalog-rotation.yml` | Every 2 days/manual: plan PHP updates, build assets, open PR, create draft release |
 | `check-php-updates.yml` | Every 2 days: detect planned PHP catalog changes, open issue if found |
+| `spc-drift-check.yml` | Daily/manual: detect SPC nightly binary checksum drift, open and auto-merge a PR bumping the pin |
 | `build-runtime.yml` | Manual: build one PHP version × one target (static via SPC) |
 | `build-catalog.yml` | Manual: build the planned catalog tarballs (static via SPC for both platforms) |
 | `publish-catalog.yml` | Manual: attach artifacts + `manifest.json` to a catalog release |

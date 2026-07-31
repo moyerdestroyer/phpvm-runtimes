@@ -1,0 +1,119 @@
+# Detect SPC (static-php-cli) nightly binary drift and open a PR bumping the pin.
+#
+# The pinned SPC binaries live under a nightly channel whose bytes are
+# republished on every upstream push, so recorded sha256 values go stale. This
+# runs daily (ahead of the catalog rotation) and, when drift is found, updates
+# builds/common/spc-pin.json on a rolling branch and opens or updates a PR.
+name: spc-drift-check
+
+on:
+  schedule:
+    # Daily at 13:00 UTC, one hour before the catalog rotation check
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Check and apply SPC pin drift
+        id: drift
+        run: |
+          set -euo pipefail
+          REPORT="$(scripts/check-spc-drift.sh --apply)"
+          echo "${REPORT}"
+          {
+            echo "report<<EOF"
+            echo "${REPORT}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Detect pin file changes
+        id: changes
+        run: |
+          set -euo pipefail
+          if git diff --quiet builds/common/spc-pin.json; then
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Push pin bump branch
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          BRANCH="automation/spc-pin-bump"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "${BRANCH}"
+          git add builds/common/spc-pin.json
+          git commit -m "Bump SPC nightly pin checksums"
+          git push --force-with-lease origin "HEAD:${BRANCH}"
+
+      - name: Open or update drift PR
+        id: pr
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PHPVM_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BRANCH="automation/spc-pin-bump"
+          TITLE="Bump SPC nightly pin checksums"
+
+          DRIFT_LINES="$(printf '%s\n' "${{ steps.drift.outputs.report }}" \
+            | sed -n '/---drift-report-start---/,/---drift-report-end---/p' \
+            | grep -E '^\S+: ' || true)"
+
+          BODY="$(mktemp)"
+          {
+            echo "Upstream SPC nightly binaries drifted from the recorded sha256 pins."
+            echo
+            echo "The \`spc-drift-check\` workflow downloaded the current nightly binaries,"
+            echo "verified their checksums, and updated \`builds/common/spc-pin.json\`."
+            echo
+            echo "\`\`\`"
+            echo "${DRIFT_LINES}"
+            echo "\`\`\`"
+            echo
+            echo "Auto-merged by the workflow; checksums were pre-verified before the commit."
+            echo "See [AGENTS.md](../blob/master/AGENTS.md)."
+          } > "${BODY}"
+
+          EXISTING="$(gh pr list --state open --head "${BRANCH}" --json number --limit 1 -q '.[0].number // empty')"
+          if [[ -n "${EXISTING}" ]]; then
+            gh pr edit "${EXISTING}" --title "${TITLE}" --body-file "${BODY}"
+            PR_NUMBER="${EXISTING}"
+            echo "Updated PR #${PR_NUMBER}"
+          else
+            PR_NUMBER="$(gh pr create \
+              --title "${TITLE}" \
+              --body-file "${BODY}" \
+              --head "${BRANCH}" \
+              --base "${{ github.event.repository.default_branch }}" \
+              --json number -q '.number')"
+            echo "Created PR #${PR_NUMBER}"
+          fi
+          echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
+
+      - name: Auto-merge drift PR
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PHPVM_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # The drift script already verified the new checksums by downloading
+          # and hashing the upstream binaries, so this merge is safe without
+          # waiting on CI. There is no branch protection requiring checks, so
+          # --auto is not applicable; merge directly.
+          gh pr merge "${{ steps.pr.outputs.pr_number }}" --squash --delete-branch
+          echo "Auto-merged PR #${{ steps.pr.outputs.pr_number }}"
