@@ -95,12 +95,12 @@ jobs:
             PR_NUMBER="${EXISTING}"
             echo "Updated PR #${PR_NUMBER}"
           else
-            PR_NUMBER="$(gh pr create \
+            PR_URL="$(gh pr create \
               --title "${TITLE}" \
               --body-file "${BODY}" \
               --head "${BRANCH}" \
-              --base "${{ github.event.repository.default_branch }}" \
-              --json number -q '.number')"
+              --base "${{ github.event.repository.default_branch }}")"
+            PR_NUMBER="${PR_URL##*/}"
             echo "Created PR #${PR_NUMBER}"
           fi
           echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"

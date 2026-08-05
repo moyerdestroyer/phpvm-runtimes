@@ -1,7 +1,7 @@
 {
   "channel": "https://dl.static-php.dev/v3/spc-bin/nightly",
   "assets": {
-    "spc-linux-x86_64": "bbf432603da03abd560cb69161b7bffd1912525f861cb5927353ed42cdafa547",
-    "spc-macos-aarch64": "35390e7288bef3433bc156314969f4957991172f6b8814ada7c8a7fbae8e3696"
+    "spc-linux-x86_64": "445e1646ec3ad4a3d4b7d4d5074d0edea7a934bf8ae3aa0afa6aa60db1379118",
+    "spc-macos-aarch64": "0e3117f43f104daa297305760ee8d22789d1b542ef1680e4cfe90479636599d5"
   }
 }
