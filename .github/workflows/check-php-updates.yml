@@ -60,7 +60,7 @@ jobs:
           ### Rotation steps
 
           The `auto-catalog-rotation.yml` workflow can build the planned catalog,
-          open the manifest/recipe PR, and create a draft release automatically.
+          publish the GitHub Release, and merge the manifest/recipe PR automatically.
 
           See [AGENTS.md](../blob/master/AGENTS.md) for the full checklist.
           ISSUE_EOF

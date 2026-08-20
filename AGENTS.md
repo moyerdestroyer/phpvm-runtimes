@@ -28,10 +28,10 @@ Official catalog automation builds both Linux x86_64 and Apple Silicon runtimes 
 1. Plans the desired catalog from php.net release metadata.
 2. Keeps a fixed catalog size by adding new PHP minor lines and dropping the oldest line.
 3. Builds every planned runtime for both targets in GitHub Actions.
-4. Updates `builds/<version>/` recipes and `manifest.json` in an automated PR.
-5. Creates or updates a draft `catalog-YYYY-MM-DD` release with the built assets.
+4. Publishes a public `catalog-YYYY-MM-DD` GitHub Release with the built assets.
+5. Updates `builds/<version>/` recipes and `manifest.json` in an automated PR, then auto-merges it.
 
-Publishing the draft release remains a manual review step.
+Releases are published immediately (not drafts) so phpvm can download tarballs as soon as `master` points at the new `catalog_tag`.
 
 ## Prepare catalog from built assets
 
@@ -62,12 +62,12 @@ scripts/verify-manifest.sh --strict
 | Workflow | Purpose |
 |---|---|
 | `validate.yml` | PR/push: script syntax, manifest schema, recipe drift |
-| `auto-catalog-rotation.yml` | Every 2 days/manual: plan PHP updates, build assets, open PR, create draft release |
+| `auto-catalog-rotation.yml` | Every 2 days/manual: plan PHP updates, build assets, publish release, auto-merge PR |
 | `check-php-updates.yml` | Every 2 days: detect planned PHP catalog changes, open issue if found |
 | `spc-drift-check.yml` | Daily/manual: detect SPC nightly binary checksum drift, open and auto-merge a PR bumping the pin |
 | `build-runtime.yml` | Manual: build one PHP version × one target (static via SPC) |
 | `build-catalog.yml` | Manual: build the planned catalog tarballs (static via SPC for both platforms) |
-| `publish-catalog.yml` | Manual: attach artifacts + `manifest.json` to a catalog release |
+| `publish-catalog.yml` | Manual: attach artifacts + `manifest.json` and publish a catalog release |
 
 **Build split:** Local Linux builds remain supported, but scheduled catalog automation builds Linux x86_64 and Apple Silicon tarballs in GitHub Actions. The reusable job uses `spc-linux-x86_64` for Linux and `spc-macos-aarch64` for `aarch64-apple-darwin`.
 

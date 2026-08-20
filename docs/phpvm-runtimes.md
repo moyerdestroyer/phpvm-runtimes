@@ -72,11 +72,11 @@ phpvm-runtimes/
 └── .github/
     └── workflows/
         ├── validate.yml            # PR/push: script + manifest checks
-        ├── auto-catalog-rotation.yml # Weekly/manual: build PR + draft release
+        ├── auto-catalog-rotation.yml # Every 2 days/manual: build, publish release, merge PR
         ├── check-php-updates.yml   # Weekly: detect planned catalog changes
         ├── build-runtime.yml       # Manual: 1 version x 1 target
         ├── build-catalog.yml       # Manual: planned catalog tarballs
-        └── publish-catalog.yml     # Validate manifest, create draft release
+        └── publish-catalog.yml     # Validate manifest, publish GitHub Release
 ```
 
 **Do not commit** multi-hundred-MB tarballs to git. Binaries live only on **GitHub Releases**.
@@ -252,14 +252,14 @@ Suggested tooling: [static-php-cli](https://github.com/crazywhalecc/static-php-c
 
 ## Publish checklist
 
-1. **Prefer automation**: run or wait for `auto-catalog-rotation.yml`; it plans php.net patch/new-minor changes, builds both targets, opens the manifest/recipe PR, and creates a draft release.
+1. **Prefer automation**: run or wait for `auto-catalog-rotation.yml`; it plans php.net patch/new-minor changes, builds both targets, publishes the GitHub Release, and auto-merges the manifest/recipe PR.
 2. **Build manually if needed** (Linux locally via `build-runtime-local.sh` + deps setup, or use `build-catalog.yml` / `build-runtime.yml` Actions for the matrix).
 3. **Verify** each tarball: `bin/php -v`, `bin/composer -V`, `php -m` matches the catalog in `extensions.json` (via `verify-extensions.sh` inside packaging).
 4. **Stage** a complete catalog asset set in `dist/`, reusing unchanged tarballs from the previous catalog when only one PHP line changed.
 5. **Run** `scripts/prepare-catalog.sh --catalog-tag catalog-YYYY-MM-DD` (it re-renders craft files and lets `update-manifest.py` produce schema 2.1 + static metadata + profiles derived from extensions.json).
 6. **Confirm** `scripts/verify-manifest.sh --strict` and `scripts/verify-manifest-assets.sh dist` pass.
 7. **Commit** `manifest.json` and changed `builds/<version>/` recipe dirs to the default branch (`master`) on phpvm-runtimes.
-8. **Create** GitHub Release `catalog-YYYY-MM-DD` with `publish-catalog.yml` (use the **same** `catalog_tag` as step 5) or upload manually; the workflow verifies tarball checksums match the committed manifest.
+8. **Publish** GitHub Release `catalog-YYYY-MM-DD` with `publish-catalog.yml` (use the **same** `catalog_tag` as step 5) or upload manually; the workflow verifies tarball checksums match the committed manifest and publishes immediately.
 9. **Smoke test** on each OS:
    ```bash
    phpvm install 8.3
