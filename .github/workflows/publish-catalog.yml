@@ -1,8 +1,8 @@
 # Create a catalog GitHub Release from built runtime artifacts.
 #
 # Prerequisite: download all 8 build-runtime artifacts into dist/ (or use
-# workflow_call from a future orchestrator). This workflow validates manifest
-# and publishes a draft release.
+# workflow_call from a future orchestrator). This workflow validates the
+# manifest and publishes the catalog GitHub Release.
 name: publish-catalog
 
 on:
@@ -91,13 +91,14 @@ jobs:
           echo "manifest.json"
           ls -la dist/ 2>/dev/null || echo "(no dist/ artifacts — upload tarballs manually to release)"
 
-      - name: Create draft catalog release
+      - name: Publish catalog release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.catalog_tag }}
           name: ${{ inputs.catalog_tag }}
-          draft: true
+          draft: false
           prerelease: false
+          make_latest: true
           generate_release_notes: true
           files: |
             manifest.json
@@ -108,7 +109,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "Draft release created for ${{ inputs.catalog_tag }}."
-          echo "Review assets, then publish the draft on GitHub."
-          echo "Ensure manifest.json is already on the default branch before publishing the draft — consumers read:"
+          echo "Published GitHub Release ${{ inputs.catalog_tag }}."
+          echo "Consumers read the catalog from:"
           echo "  https://raw.githubusercontent.com/${{ github.repository }}/master/manifest.json"
+          echo "Ensure that file's catalog_tag and artifact URLs match this release."

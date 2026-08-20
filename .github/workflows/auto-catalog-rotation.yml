@@ -1,4 +1,5 @@
-# Detect PHP releases, build the planned catalog, open a PR, and create a draft release.
+# Detect PHP releases, build the planned catalog, publish the GitHub Release,
+# and merge the manifest/recipe PR.
 name: auto-catalog-rotation
 
 on:
@@ -18,7 +19,7 @@ on:
         type: boolean
         default: false
       dry_run:
-        description: Build and verify without pushing a PR or draft release
+        description: Build and verify without pushing a PR or publishing a release
         required: false
         type: boolean
         default: false
@@ -150,6 +151,7 @@ jobs:
           fi
 
       - name: Open or update catalog PR
+        id: pr
         if: github.event.inputs.dry_run != 'true'
         continue-on-error: true
         env:
@@ -184,28 +186,35 @@ jobs:
             jq -r 'if (.removed | length) == 0 then "- none" else .removed[] | "- `" + . + "`" end' plan.json
             echo
             echo "The workflow built all planned tarballs, updated \`manifest.json\`, and verified strict manifest/assets checks."
+            echo
+            echo "GitHub Release \`${CATALOG_TAG}\` is published before this PR is merged, so phpvm never sees unpublished \`/releases/download\` URLs."
           } > "${BODY}"
 
           EXISTING="$(gh pr list --state open --head "${BRANCH}" --json number --limit 1 -q '.[0].number // empty')"
           if [[ -n "${EXISTING}" ]]; then
             gh pr edit "${EXISTING}" --title "${TITLE}" --body-file "${BODY}"
-            echo "Updated PR #${EXISTING}"
+            PR_NUMBER="${EXISTING}"
+            echo "Updated PR #${PR_NUMBER}"
           else
-            gh pr create \
+            PR_URL="$(gh pr create \
               --title "${TITLE}" \
               --body-file "${BODY}" \
               --head "${BRANCH}" \
-              --base "${{ github.event.repository.default_branch }}"
+              --base "${{ github.event.repository.default_branch }}")"
+            PR_NUMBER="${PR_URL##*/}"
+            echo "Created PR #${PR_NUMBER}"
           fi
+          echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
 
-      - name: Create or update draft release
+      - name: Publish catalog release
         if: github.event.inputs.dry_run != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.plan.outputs.catalog_tag }}
           name: ${{ needs.plan.outputs.catalog_tag }}
-          draft: true
+          draft: false
           prerelease: false
+          make_latest: true
           generate_release_notes: true
           files: |
             manifest.json
@@ -213,3 +222,14 @@ jobs:
             dist/php-*.tar.gz.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auto-merge catalog PR
+        if: github.event.inputs.dry_run != 'true' && steps.pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.PHPVM_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Publish the GitHub Release first so master never points at
+          # unpublished /releases/download URLs, then land the manifest.
+          gh pr merge "${{ steps.pr.outputs.pr_number }}" --squash --delete-branch
+          echo "Auto-merged PR #${{ steps.pr.outputs.pr_number }}"

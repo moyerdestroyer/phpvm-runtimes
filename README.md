@@ -15,10 +15,10 @@ phpvm installs and switches PHP versions on your machine. This repo builds those
 
 | PHP line | Patch | Composer |
 |---|---|---|
-| 8.1 | 8.1.34 | 2.9.2 |
-| 8.2 | 8.2.31 | 2.9.2 |
-| 8.3 | 8.3.31 | 2.9.2 |
-| 8.4 | 8.4.22 | 2.9.2 |
+| 8.2 | 8.2.33 | 2.9.2 |
+| 8.3 | 8.3.33 | 2.9.2 |
+| 8.4 | 8.4.24 | 2.9.2 |
+| 8.5 | 8.5.9 | 2.9.2 |
 
 Each version is built for two target triples:
 
@@ -140,7 +140,7 @@ Both Linux and macOS Apple Silicon catalog builds are produced via StaticPHP. Us
 
 Typical rotation flow:
 
-1. **Prefer automation** — dispatch or wait for `auto-catalog-rotation.yml`; it plans php.net updates, builds both targets, opens the manifest/recipe PR, and creates a draft release.
+1. **Prefer automation** — dispatch or wait for `auto-catalog-rotation.yml`; it plans php.net updates, builds both targets, publishes the GitHub Release, and auto-merges the manifest/recipe PR.
 2. **Build manually if needed** — locally or via `build-catalog.yml` in Actions.
 3. **Stage** all catalog tarballs in `dist/` (reuse unchanged ones from a previous release when only one PHP line changed).
 4. **Prepare** the manifest:
@@ -148,8 +148,7 @@ Typical rotation flow:
    scripts/prepare-catalog.sh --catalog-tag catalog-2026-06-13
    ```
 5. **Commit** the updated `manifest.json` and `builds/<version>/` recipes to the default branch.
-6. **Publish** — dispatch `publish-catalog.yml` with the **same** `catalog_tag` and the `build-catalog` run ID. The workflow verifies tarball checksums match the manifest before creating a draft release.
-7. **Review** the draft on GitHub, then publish it.
+6. **Publish** — dispatch `publish-catalog.yml` with the **same** `catalog_tag` and the `build-catalog` run ID. The workflow verifies tarball checksums match the manifest and publishes the GitHub Release.
 
 Patch-only rotation with reused tarballs:
 
@@ -176,11 +175,11 @@ See [AGENTS.md](AGENTS.md) for the full checklist and [docs/phpvm-runtimes.md](d
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | `validate.yml` | push / PR | Script syntax, manifest schema, recipe drift |
-| `auto-catalog-rotation.yml` | schedule / manual | Detect php.net changes, build catalog, open PR, create draft release |
+| `auto-catalog-rotation.yml` | schedule / manual | Detect php.net changes, build catalog, publish release, auto-merge PR |
 | `check-php-updates.yml` | schedule / manual | Open/update an issue for planned catalog changes |
 | `build-runtime.yml` | manual | Build one static runtime (any target) |
 | `build-catalog.yml` | manual | Build the planned catalog tarballs (static) |
-| `publish-catalog.yml` | manual | Validate manifest + tarballs, create draft release |
+| `publish-catalog.yml` | manual | Validate manifest + tarballs, publish GitHub Release |
 
 ---
 
