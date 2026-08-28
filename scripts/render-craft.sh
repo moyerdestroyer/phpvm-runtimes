@@ -11,6 +11,9 @@ EXT_JSON="${ROOT}/builds/common/extensions.json"
 # OpenLDAP 2.7.0 (2026-08-06) fails to compile for aarch64-apple-darwin with SPC;
 # pin the last 2.6 maintenance release until upstream supports 2.7.x.
 LDAP_PIN_URL="https://www.openldap.org/software/download/OpenLDAP/openldap-release/openldap-2.6.14.tgz"
+# ftpmirror.gnu.org (SPC's fallback for gmp) is chronically flaky from CI runners;
+# pin the canonical ftp.gnu.org tarball instead.
+GMP_PIN_URL="https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz"
 
 render_one() {
   local craft_dir="$1"
@@ -47,6 +50,7 @@ download-options:
   retry: 3
   custom-url:
     - "ldap:${LDAP_PIN_URL}"
+    - "gmp:${GMP_PIN_URL}"
 EOF
   echo "rendered ${craft_dir}/craft.yml (php ${version}, $(jq '.spc | length' "${EXT_JSON}") spc extensions)"
 }

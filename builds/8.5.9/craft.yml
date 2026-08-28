@@ -8,3 +8,4 @@ download-options:
   retry: 3
   custom-url:
     - "ldap:https://www.openldap.org/software/download/OpenLDAP/openldap-release/openldap-2.6.14.tgz"
+    - "gmp:https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz"
