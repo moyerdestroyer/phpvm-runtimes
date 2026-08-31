@@ -68,11 +68,33 @@ else
   echo "warning: skipping spc doctor (SPC_SKIP_DOCTOR=1)"
 fi
 
+dump_failure_logs() {
+  echo "spc craft failed; dumping diagnostic logs" >&2
+  local log_file
+  for log_file in \
+    "${CRAFT_DIR}/log/php-src.config.log" \
+    "${CRAFT_DIR}/log/spc.output.log" \
+    "${CRAFT_DIR}/log/spc.shell.log"; do
+    if [[ -f "${log_file}" ]]; then
+      echo "===== ${log_file} (errors, last 40) =====" >&2
+      grep -iE "error|cannot|not found|failed" "${log_file}" | tail -40 >&2 || true
+      echo "===== ${log_file} (tail 120) =====" >&2
+      tail -120 "${log_file}" >&2 || true
+    else
+      echo "warning: log not found: ${log_file}" >&2
+    fi
+  done
+}
+
 if ! "${SPC_BIN}" craft "$@"; then
   if ensure_frankenphp_source_link; then
     echo "retrying spc craft after creating compatibility symlink"
-    "${SPC_BIN}" craft "$@"
+    if ! "${SPC_BIN}" craft "$@"; then
+      dump_failure_logs
+      exit 1
+    fi
   else
+    dump_failure_logs
     exit 1
   fi
 fi
