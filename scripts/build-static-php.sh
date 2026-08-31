@@ -68,6 +68,14 @@ else
   echo "warning: skipping spc doctor (SPC_SKIP_DOCTOR=1)"
 fi
 
+if [[ "$(uname -s)" == "Darwin" && -z "${SPC_EXTRA_PHP_VARS:-}" ]]; then
+  # static-php-cli nightly (since 2026-08-22, a488606e) stopped leaking the
+  # macOS framework flags into php's ./configure, so the static libcurl
+  # conftest link fails with "The libcurl check failed". Pass them through
+  # LIBS explicitly until upstream restores framework handling for Darwin.
+  export SPC_EXTRA_PHP_VARS="LIBS='-lresolv -framework CoreFoundation -framework CoreServices -framework SystemConfiguration'"
+fi
+
 dump_failure_logs() {
   echo "spc craft failed; dumping diagnostic logs" >&2
   local log_file
