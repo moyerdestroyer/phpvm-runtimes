@@ -68,13 +68,56 @@ else
   echo "warning: skipping spc doctor (SPC_SKIP_DOCTOR=1)"
 fi
 
-if [[ "$(uname -s)" == "Darwin" && -z "${SPC_EXTRA_PHP_VARS:-}" ]]; then
+USER_EXTRA_PHP_VARS="${SPC_EXTRA_PHP_VARS:-}"
+DARWIN_FRAMEWORK_LIBS="-lresolv -framework CoreFoundation -framework CoreServices -framework SystemConfiguration"
+
+set_darwin_configure_libs() {
   # static-php-cli nightly (since 2026-08-22, a488606e) stopped leaking the
   # macOS framework flags into php's ./configure, so the static libcurl
   # conftest link fails with "The libcurl check failed". Pass them through
   # LIBS explicitly until upstream restores framework handling for Darwin.
-  export SPC_EXTRA_PHP_VARS="LIBS='-lresolv -framework CoreFoundation -framework CoreServices -framework SystemConfiguration'"
-fi
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    return 0
+  fi
+  local libs="${1:-}${DARWIN_FRAMEWORK_LIBS}"
+  export SPC_EXTRA_PHP_VARS="${USER_EXTRA_PHP_VARS} LIBS='${libs}'"
+}
+
+augment_darwin_pgsql_libs() {
+  # For PHP < 8.4, spc passes --with-pgsql=<buildroot> and php's DIR-based
+  # pdo_pgsql check links -lpq with only LIBS for transitive dependencies;
+  # static libpq needs its full closure (pgcommon, pgport, ldap, ...).
+  # libpq.pc only exists after the first craft builds the postgresql
+  # library, so this can only run on a retry. See crazywhalecc/static-php-cli#1238.
+  [[ "$(uname -s)" == "Darwin" ]] || return 1
+  local major minor
+  major="${EXPECTED_PHP%%.*}"
+  minor="$(echo "${EXPECTED_PHP}" | cut -d. -f2)"
+  if (( major > 8 || (major == 8 && minor >= 4) )); then
+    return 1
+  fi
+  local pc_file pc_dir pgsql_libs pkg_config_bin
+  for pc_file in \
+    "${CRAFT_DIR}/buildroot/lib/pkgconfig/libpq.pc" \
+    "${CRAFT_DIR}"/pkgroot/*/lib/pkgconfig/libpq.pc; do
+    [[ -f "${pc_file}" ]] && break
+    pc_file=""
+  done
+  [[ -n "${pc_file}" ]] || return 1
+  pc_dir="$(dirname "${pc_file}")"
+  pkg_config_bin="$(command -v pkg-config || true)"
+  if [[ -z "${pkg_config_bin}" ]]; then
+    pkg_config_bin="$(ls "${CRAFT_DIR}"/pkgroot/*/bin/pkg-config 2>/dev/null | head -1 || true)"
+  fi
+  [[ -n "${pkg_config_bin}" ]] || return 1
+  pgsql_libs="$(PKG_CONFIG_PATH="${pc_dir}" "${pkg_config_bin}" --static --libs libpq 2>/dev/null | tr '\n' ' ' | sed 's/  */ /g')" || return 1
+  [[ -n "${pgsql_libs}" ]] || return 1
+  set_darwin_configure_libs "${pgsql_libs} "
+  echo "injected static libpq closure into php configure LIBS: ${pgsql_libs}"
+  return 0
+}
+
+set_darwin_configure_libs
 
 dump_failure_logs() {
   echo "spc craft failed; dumping diagnostic logs" >&2
@@ -95,8 +138,15 @@ dump_failure_logs() {
 }
 
 if ! "${SPC_BIN}" craft "$@"; then
+  retry_reason=""
   if ensure_frankenphp_source_link; then
-    echo "retrying spc craft after creating compatibility symlink"
+    retry_reason="frankenphp compatibility symlink"
+  fi
+  if augment_darwin_pgsql_libs; then
+    retry_reason="${retry_reason:+${retry_reason} and }static libpq closure"
+  fi
+  if [[ -n "${retry_reason}" ]]; then
+    echo "retrying spc craft after: ${retry_reason}"
     if ! "${SPC_BIN}" craft "$@"; then
       dump_failure_logs
       exit 1
