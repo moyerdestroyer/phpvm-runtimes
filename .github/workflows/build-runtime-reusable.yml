@@ -1,4 +1,8 @@
 # Reusable job: build, package, and verify one *static* runtime tarball (SPC for both Linux and macOS).
+#
+# NOTE: the x86_64-unknown-linux-gnu target is a fully-static musl build with
+# no glibc dependency; the triple name is kept for manifest schema
+# compatibility with phpvm consumers.
 on:
   workflow_call:
     inputs:
@@ -16,17 +20,21 @@ jobs:
   build:
     runs-on: >-
       ${{
-        inputs.target == 'x86_64-unknown-linux-gnu' && 'ubuntu-22.04' ||
+        inputs.target == 'x86_64-unknown-linux-gnu' && 'ubuntu-24.04' ||
         inputs.target == 'aarch64-apple-darwin' && 'macos-14' ||
-        'ubuntu-22.04'
+        'ubuntu-24.04'
       }}
+    timeout-minutes: 120
+    env:
+      PHP_VERSION: ${{ inputs.php_version }}
+      TARGET: ${{ inputs.target }}
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Select target settings
         run: |
-          case "${{ inputs.target }}" in
+          case "${TARGET}" in
             x86_64-unknown-linux-gnu)
               echo "SPC_ASSET=spc-linux-x86_64" >> "${GITHUB_ENV}"
               ;;
@@ -34,7 +42,7 @@ jobs:
               echo "SPC_ASSET=spc-macos-aarch64" >> "${GITHUB_ENV}"
               ;;
             *)
-              echo "error: unsupported target: ${{ inputs.target }}" >&2
+              echo "error: unsupported target: ${TARGET}" >&2
               exit 1
               ;;
           esac
@@ -70,7 +78,7 @@ jobs:
           echo "PHPVM_BUILD_JOBS=$(sysctl -n hw.ncpu)" >> "${GITHUB_ENV}"
 
       - name: Render craft recipe
-        run: scripts/render-craft.sh "builds/${{ inputs.php_version }}"
+        run: scripts/render-craft.sh "builds/${PHP_VERSION}"
 
       - name: Cache SPC binary
         id: cache-spc
@@ -106,7 +114,7 @@ jobs:
         run: |
           STAGING="${RUNNER_TEMP}/runtime-staging"
           mkdir -p "${STAGING}/bin"
-          cp "builds/${{ inputs.php_version }}/buildroot/bin/php" "${STAGING}/bin/php"
+          cp "builds/${PHP_VERSION}/buildroot/bin/php" "${STAGING}/bin/php"
           scripts/install-composer.sh "${STAGING}"
 
       - name: Package tarball
@@ -114,8 +122,8 @@ jobs:
           mkdir -p dist
           scripts/package-runtime.sh \
             "${RUNNER_TEMP}/runtime-staging" \
-            "${{ inputs.php_version }}" \
-            "${{ inputs.target }}" \
+            "${PHP_VERSION}" \
+            "${TARGET}" \
             dist
 
       - name: Upload artifact

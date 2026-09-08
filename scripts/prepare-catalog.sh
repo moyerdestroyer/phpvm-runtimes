@@ -30,7 +30,7 @@ EOF
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ASSETS_DIR="${ROOT}/dist"
 REUSE_DIR=""
-GITHUB_REPO="moyerdestroyer/phpvm-runtimes"
+GITHUB_REPO=""
 MANIFEST="${ROOT}/manifest.json"
 CATALOG_TAG=""
 PUBLISHED_AT=""
@@ -80,6 +80,16 @@ done
 [[ -n "${CATALOG_TAG}" ]] || {
   echo "error: --catalog-tag is required" >&2
   usage
+}
+
+if [[ -z "${GITHUB_REPO}" ]]; then
+  GITHUB_REPO="$(git -C "${ROOT}" remote get-url origin 2>/dev/null \
+    | sed -E 's#.*github.com[:/]##; s#\.git$##' || true)"
+fi
+[[ -n "${GITHUB_REPO}" ]] || {
+  echo "error: could not derive OWNER/REPO from the origin git remote" >&2
+  echo "pass --github-repo explicitly" >&2
+  exit 1
 }
 
 [[ -f "${MANIFEST}" ]] || {

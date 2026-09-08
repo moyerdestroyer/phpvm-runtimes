@@ -25,13 +25,14 @@ Official catalog automation builds both Linux x86_64 and Apple Silicon runtimes 
 
 `auto-catalog-rotation.yml` runs every two days and can also be dispatched manually. It:
 
-1. Plans the desired catalog from php.net release metadata.
+1. Plans the desired catalog from php.net release metadata (suggested **downgrades for already-shipped lines are ignored** — php.net has served stale per-minor data before, e.g. 2026-09-05).
 2. Keeps a fixed catalog size by adding new PHP minor lines and dropping the oldest line.
-3. Builds every planned runtime for both targets in GitHub Actions.
-4. Publishes a public `catalog-YYYY-MM-DD` GitHub Release with the built assets.
+3. Builds **only added/updated runtimes** for both targets; unchanged tarballs are re-attached from the previous catalog release (identical checksums, no user re-downloads).
+4. Publishes a public `catalog-YYYY-MM-DD` GitHub Release with the assets.
 5. Updates `builds/<version>/` recipes and `manifest.json` in an automated PR, then auto-merges it.
+6. Opens a "Catalog rotation failed" issue if any step fails, and closes stale "PHP catalog updates available" issues after a successful rotation.
 
-Releases are published immediately (not drafts) so phpvm can download tarballs as soon as `master` points at the new `catalog_tag`.
+Releases are published immediately (not drafts) so phpvm can download tarballs as soon as `master` points at the new `catalog_tag`. A full rebuild of everything can be forced with the `force` dispatch input.
 
 ## Prepare catalog from built assets
 
@@ -62,14 +63,17 @@ scripts/verify-manifest.sh --strict
 | Workflow | Purpose |
 |---|---|
 | `validate.yml` | PR/push: script syntax, manifest schema, recipe drift |
-| `auto-catalog-rotation.yml` | Every 2 days/manual: plan PHP updates, build assets, publish release, auto-merge PR |
-| `check-php-updates.yml` | Every 2 days: detect planned PHP catalog changes, open issue if found |
-| `spc-drift-check.yml` | Daily/manual: detect SPC nightly binary checksum drift, open and auto-merge a PR bumping the pin |
+| `auto-catalog-rotation.yml` | Every 2 days/manual: plan PHP updates, build changed runtimes (reuse the rest), publish release, auto-merge PR |
 | `build-runtime.yml` | Manual: build one PHP version × one target (static via SPC) |
 | `build-catalog.yml` | Manual: build the planned catalog tarballs (static via SPC for both platforms) |
 | `publish-catalog.yml` | Manual: attach artifacts + `manifest.json` and publish a catalog release |
+| `update-spc-toolchain.yml` | Manual: vendor a new pinned SPC toolchain release and open a PR |
 
 **Build split:** Local Linux builds remain supported, but scheduled catalog automation builds Linux x86_64 and Apple Silicon tarballs in GitHub Actions. The reusable job uses `spc-linux-x86_64` for Linux and `spc-macos-aarch64` for `aarch64-apple-darwin`.
+
+## SPC toolchain pinning
+
+Catalog builds download StaticPHP (spc) from this repo's own immutable `spc-toolchain-*` releases; `builds/common/spc-pin.json` pins the URL and sha256. Upstream publishes spc binaries only on a nightly channel whose bytes are republished on every upstream push (this previously required a daily drift-check workflow and broke the 2026-08-31 rotation). To upgrade the toolchain: dispatch `update-spc-toolchain.yml`, validate with a dispatched `build-runtime` (one version, both targets), then merge its PR. Never point the pin `channel` at the upstream nightly URL directly.
 
 ## Catalog rotation
 

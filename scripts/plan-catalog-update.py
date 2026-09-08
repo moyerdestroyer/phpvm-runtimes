@@ -194,8 +194,28 @@ def build_plan(
         latest_patch_for_minor(minor, release_fixture)
         for minor in target_minors
     ]
-    desired = sorted(desired, key=version_key)
     desired_by_minor = {minor_of(version): version for version in desired}
+
+    # php.net's per-minor releases API has served stale data (e.g. 2026-09-05,
+    # when 8.4 briefly listed 8.4.24 as latest while 8.4.25 was already
+    # shipped). Never plan a downgrade for an existing line: keep the shipped
+    # patch and record the skipped suggestion instead.
+    ignored_downgrades = []
+    for minor in sorted(desired_by_minor):
+        planned = desired_by_minor[minor]
+        shipped = current_by_minor.get(minor)
+        if shipped is not None and version_key(planned) < version_key(shipped):
+            print(
+                f"warning: php.net lists {planned} for {minor} but {shipped} "
+                "is already shipped; ignoring downgrade",
+                file=sys.stderr,
+            )
+            ignored_downgrades.append(
+                {"minor": minor, "shipped": shipped, "planned": planned}
+            )
+            desired_by_minor[minor] = shipped
+
+    desired = sorted(desired_by_minor.values(), key=version_key)
 
     added = [
         desired_by_minor[minor]
@@ -223,6 +243,20 @@ def build_plan(
         ]
     }
 
+    # Only added and updated lines need fresh tarballs; unchanged versions are
+    # reused from the previous catalog release (see auto-catalog-rotation).
+    build_versions = sorted(
+        set(added) | {entry["to"] for entry in updated},
+        key=version_key,
+    )
+    build_matrix = {
+        "include": [
+            {"php_version": php, "target": target}
+            for php in build_versions
+            for target in TARGETS
+        ]
+    }
+
     return {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "policy": "fixed-count-newest-supported-minors",
@@ -234,8 +268,11 @@ def build_plan(
         "removed": removed,
         "updated": updated,
         "unchanged": unchanged,
+        "ignored_downgrades": ignored_downgrades,
+        "build_versions": build_versions,
         "has_update": bool(added or removed or updated),
         "matrix": matrix,
+        "build_matrix": build_matrix,
     }
 
 
@@ -254,7 +291,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--format",
-        choices=("plan", "matrix", "versions"),
+        choices=("plan", "matrix", "build-matrix", "versions", "build-versions"),
         default="plan",
         help="Output format (default: plan)",
     )
@@ -270,8 +307,12 @@ def main() -> int:
 
     if args.format == "matrix":
         output = plan["matrix"]
+    elif args.format == "build-matrix":
+        output = plan["build_matrix"]
     elif args.format == "versions":
         output = plan["desired_versions"]
+    elif args.format == "build-versions":
+        output = plan["build_versions"]
     else:
         output = plan
 

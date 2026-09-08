@@ -1,0 +1,139 @@
+# Vendor a fresh StaticPHP (spc) build toolchain from the upstream nightly
+# channel into an immutable release of this repo, and open a PR repointing
+# builds/common/spc-pin.json at it.
+#
+# Catalog builds download spc from our own frozen toolchain releases
+# (spc-toolchain-YYYY-MM-DD), so upstream nightly drift can never break a
+# scheduled rotation. Upgrades are deliberate: this workflow runs on demand,
+# smoke-tests the new binaries, and lands via a PR that should be validated
+# with a dispatched build-runtime (one version, both targets) before merging.
+name: update-spc-toolchain
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-spc-toolchain
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Vendor and smoke-test upstream binaries
+        id: vendor
+        run: |
+          set -euo pipefail
+
+          PIN_FILE="builds/common/spc-pin.json"
+          UPSTREAM="$(jq -r '.upstream_channel' "${PIN_FILE}")"
+          TAG="spc-toolchain-$(date -u +%F)"
+
+          mkdir -p .toolchain
+          mapfile -t ASSETS < <(jq -r '.assets | keys[]' "${PIN_FILE}")
+          for asset in "${ASSETS[@]}"; do
+            echo "downloading ${UPSTREAM}/${asset}"
+            curl --fail --silent --show-error --location \
+              --retry 5 --retry-delay 2 --retry-max-time 120 --retry-all-errors \
+              -o ".toolchain/${asset}" "${UPSTREAM}/${asset}"
+            chmod +x ".toolchain/${asset}"
+            sha="$(sha256sum ".toolchain/${asset}" | awk '{print $1}')"
+            jq --arg a "${asset}" --arg sha "${sha}" '.assets[$a] = $sha' \
+              "${PIN_FILE}" > pin.tmp.json
+            mv pin.tmp.json "${PIN_FILE}"
+          done
+
+          ./.toolchain/spc-linux-x86_64 --version
+          file ./.toolchain/spc-macos-aarch64 | grep -q 'Mach-O'
+
+          {
+            echo "tag=${TAG}"
+            echo "channel=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Publish toolchain release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_TAG: ${{ steps.vendor.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          NOTES="Vendored StaticPHP (spc) toolchain from the upstream nightly channel.
+          The linux binary passed \`spc --version\`; the macOS binary was verified as Mach-O arm64.
+          Validate this toolchain with a dispatched build-runtime (one PHP version, both targets)
+          before merging the pin bump PR."
+          if gh release view "${NEW_TAG}" >/dev/null 2>&1; then
+            gh release upload "${NEW_TAG}" .toolchain/spc-* --clobber
+          else
+            gh release create "${NEW_TAG}" \
+              --title "SPC toolchain ${NEW_TAG}" \
+              --notes "${NOTES}" \
+              --latest=false \
+              .toolchain/spc-*
+          fi
+
+      - name: Repoint pin file
+        env:
+          NEW_CHANNEL: ${{ steps.vendor.outputs.channel }}
+        run: |
+          set -euo pipefail
+          jq --arg c "${NEW_CHANNEL}" '.channel = $c' \
+            builds/common/spc-pin.json > pin.tmp.json
+          mv pin.tmp.json builds/common/spc-pin.json
+          cat builds/common/spc-pin.json
+
+      - name: Push toolchain branch
+        env:
+          NEW_TAG: ${{ steps.vendor.outputs.tag }}
+        run: |
+          set -euo pipefail
+          BRANCH="automation/${NEW_TAG}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "${BRANCH}"
+          git add builds/common/spc-pin.json
+          git commit -m "Bump vendored SPC toolchain to ${NEW_TAG}"
+          git push --force-with-lease origin "HEAD:${BRANCH}"
+
+      - name: Open toolchain PR
+        env:
+          GH_TOKEN: ${{ secrets.PHPVM_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
+          NEW_TAG: ${{ steps.vendor.outputs.tag }}
+        run: |
+          set -euo pipefail
+          BRANCH="automation/${NEW_TAG}"
+
+          BODY="$(mktemp)"
+          {
+            echo "Vendored a new SPC toolchain release \`${NEW_TAG}\` and repointed"
+            echo "\`builds/common/spc-pin.json\` at it."
+            echo
+            echo "The linux binary passed \`spc --version\` and the macOS binary was verified"
+            echo "as Mach-O arm64, but only a real build proves the toolchain."
+            echo
+            echo "**Before merging:** dispatch \`build-runtime\` for one catalog version on both"
+            echo "targets and confirm both succeed."
+          } > "${BODY}"
+
+          EXISTING="$(gh pr list --state open --head "${BRANCH}" --json number --limit 1 -q '.[0].number // empty')"
+          if [[ -n "${EXISTING}" ]]; then
+            gh pr edit "${EXISTING}" --title "Bump vendored SPC toolchain to ${NEW_TAG}" --body-file "${BODY}"
+            echo "Updated PR #${EXISTING}"
+          else
+            gh pr create \
+              --title "Bump vendored SPC toolchain to ${NEW_TAG}" \
+              --body-file "${BODY}" \
+              --head "${BRANCH}" \
+              --base "${{ github.event.repository.default_branch }}"
+          fi

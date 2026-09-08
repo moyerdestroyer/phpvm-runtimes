@@ -72,11 +72,11 @@ phpvm-runtimes/
 └── .github/
     └── workflows/
         ├── validate.yml            # PR/push: script + manifest checks
-        ├── auto-catalog-rotation.yml # Every 2 days/manual: build, publish release, merge PR
-        ├── check-php-updates.yml   # Weekly: detect planned catalog changes
+        ├── auto-catalog-rotation.yml # Every 2 days/manual: build changed runtimes, publish release, merge PR
         ├── build-runtime.yml       # Manual: 1 version x 1 target
         ├── build-catalog.yml       # Manual: planned catalog tarballs
-        └── publish-catalog.yml     # Validate manifest, publish GitHub Release
+        ├── publish-catalog.yml     # Validate manifest, publish GitHub Release
+        └── update-spc-toolchain.yml # Manual: vendor a new pinned SPC toolchain release
 ```
 
 **Do not commit** multi-hundred-MB tarballs to git. Binaries live only on **GitHub Releases**.
@@ -252,7 +252,7 @@ Suggested tooling: [static-php-cli](https://github.com/crazywhalecc/static-php-c
 
 ## Publish checklist
 
-1. **Prefer automation**: run or wait for `auto-catalog-rotation.yml`; it plans php.net patch/new-minor changes, builds both targets, publishes the GitHub Release, and auto-merges the manifest/recipe PR.
+1. **Prefer automation**: run or wait for `auto-catalog-rotation.yml`; it plans php.net patch/new-minor changes (ignoring suggested downgrades for already-shipped lines), builds only the changed runtimes for both targets (unchanged tarballs are re-attached from the previous release), publishes the GitHub Release, and auto-merges the manifest/recipe PR.
 2. **Build manually if needed** (Linux locally via `build-runtime-local.sh` + deps setup, or use `build-catalog.yml` / `build-runtime.yml` Actions for the matrix).
 3. **Verify** each tarball: `bin/php -v`, `bin/composer -V`, `php -m` matches the catalog in `extensions.json` (via `verify-extensions.sh` inside packaging).
 4. **Stage** a complete catalog asset set in `dist/`, reusing unchanged tarballs from the previous catalog when only one PHP line changed.

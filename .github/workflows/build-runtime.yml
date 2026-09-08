@@ -21,6 +21,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build-runtime
+  cancel-in-progress: false
+
 jobs:
   build:
     uses: ./.github/workflows/build-runtime-reusable.yml

@@ -26,9 +26,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: publish-catalog
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -37,8 +42,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Verify manifest
+        env:
+          STRICT_MANIFEST: ${{ inputs.strict_manifest }}
         run: |
-          if [[ "${{ inputs.strict_manifest }}" == "true" ]]; then
+          if [[ "${STRICT_MANIFEST}" == "true" ]]; then
             scripts/verify-manifest.sh --strict manifest.json
           else
             scripts/verify-manifest.sh manifest.json
@@ -46,10 +53,12 @@ jobs:
 
       - name: Assert release tag matches manifest
         if: inputs.strict_manifest == true
+        env:
+          INPUT_CATALOG_TAG: ${{ inputs.catalog_tag }}
         run: |
           MANIFEST_TAG="$(jq -r '.catalog_tag // empty' manifest.json)"
-          if [[ "${MANIFEST_TAG}" != "${{ inputs.catalog_tag }}" ]]; then
-            echo "error: workflow catalog_tag (${{ inputs.catalog_tag }}) != manifest catalog_tag (${MANIFEST_TAG})" >&2
+          if [[ "${MANIFEST_TAG}" != "${INPUT_CATALOG_TAG}" ]]; then
+            echo "error: workflow catalog_tag (${INPUT_CATALOG_TAG}) != manifest catalog_tag (${MANIFEST_TAG})" >&2
             exit 1
           fi
 
@@ -71,14 +80,16 @@ jobs:
           merge-multiple: true
 
       - name: Verify catalog tarballs
+        env:
+          STRICT_MANIFEST: ${{ inputs.strict_manifest }}
         run: |
           if [[ -d dist && "$(find dist -maxdepth 1 -name 'php-*.tar.gz' -type f | wc -l)" -gt 0 ]]; then
-            if [[ "${{ inputs.strict_manifest }}" == "true" ]]; then
+            if [[ "${STRICT_MANIFEST}" == "true" ]]; then
               scripts/verify-manifest-assets.sh dist manifest.json
             else
               scripts/verify-catalog-assets.sh dist manifest.json
             fi
-          elif [[ "${{ inputs.strict_manifest }}" == "true" ]]; then
+          elif [[ "${STRICT_MANIFEST}" == "true" ]]; then
             echo "error: strict publish requires all catalog tarballs in dist/" >&2
             echo "provide artifact_run_id from a build-catalog run, or publish with strict_manifest=false" >&2
             exit 1
@@ -108,8 +119,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Summary
+        env:
+          INPUT_CATALOG_TAG: ${{ inputs.catalog_tag }}
         run: |
-          echo "Published GitHub Release ${{ inputs.catalog_tag }}."
+          echo "Published GitHub Release ${INPUT_CATALOG_TAG}."
           echo "Consumers read the catalog from:"
-          echo "  https://raw.githubusercontent.com/${{ github.repository }}/master/manifest.json"
+          echo "  https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/master/manifest.json"
           echo "Ensure that file's catalog_tag and artifact URLs match this release."

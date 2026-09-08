@@ -134,13 +134,15 @@ scripts/build-runtime-local.sh 8.3.31
 
 Both Linux and macOS Apple Silicon catalog builds are produced via StaticPHP. Use `auto-catalog-rotation.yml` for scheduled release rotation, or `build-catalog.yml` / `build-runtime.yml` for manual builds. Local Linux builds use `scripts/setup-linux-build-deps.sh` + the build script; macOS uses Homebrew build tools + the reusable workflow.
 
+Catalog builds download the pinned StaticPHP (spc) binary from this repo's own immutable `spc-toolchain-*` releases (see `builds/common/spc-pin.json`); upstream only publishes a nightly channel that drifts daily, so upgrades go through `update-spc-toolchain.yml`. The `x86_64-unknown-linux-gnu` target is a fully-static **musl** build — the triple name is kept only for manifest schema compatibility.
+
 ---
 
 ## Publishing a catalog (maintainers)
 
 Typical rotation flow:
 
-1. **Prefer automation** — dispatch or wait for `auto-catalog-rotation.yml`; it plans php.net updates, builds both targets, publishes the GitHub Release, and auto-merges the manifest/recipe PR.
+1. **Prefer automation** — dispatch or wait for `auto-catalog-rotation.yml`; it plans php.net updates (ignoring suggested downgrades for already-shipped lines), builds only the changed runtimes for both targets (unchanged tarballs are re-attached from the previous release), publishes the GitHub Release, and auto-merges the manifest/recipe PR.
 2. **Build manually if needed** — locally or via `build-catalog.yml` in Actions.
 3. **Stage** all catalog tarballs in `dist/` (reuse unchanged ones from a previous release when only one PHP line changed).
 4. **Prepare** the manifest:
@@ -175,11 +177,11 @@ See [AGENTS.md](AGENTS.md) for the full checklist and [docs/phpvm-runtimes.md](d
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | `validate.yml` | push / PR | Script syntax, manifest schema, recipe drift |
-| `auto-catalog-rotation.yml` | schedule / manual | Detect php.net changes, build catalog, publish release, auto-merge PR |
-| `check-php-updates.yml` | schedule / manual | Open/update an issue for planned catalog changes |
+| `auto-catalog-rotation.yml` | schedule / manual | Detect php.net changes, build changed runtimes (reusing the rest), publish release, auto-merge PR |
 | `build-runtime.yml` | manual | Build one static runtime (any target) |
 | `build-catalog.yml` | manual | Build the planned catalog tarballs (static) |
 | `publish-catalog.yml` | manual | Validate manifest + tarballs, publish GitHub Release |
+| `update-spc-toolchain.yml` | manual | Vendor a new pinned StaticPHP (spc) toolchain release and open a PR
 
 ---
 

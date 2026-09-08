@@ -1,5 +1,10 @@
-# Detect PHP releases, build the planned catalog, publish the GitHub Release,
-# and merge the manifest/recipe PR.
+# Detect PHP releases, build only the changed runtimes, publish the GitHub
+# Release, and merge the manifest/recipe PR.
+#
+# Unchanged tarballs are reused from the previous catalog release, so a single
+# patch release costs 2 builds (1 PHP version x 2 targets) instead of 8.
+# php.net downgrades for already-shipped lines are ignored by the planner
+# (the per-minor releases API has served stale data before, e.g. 2026-09-05).
 name: auto-catalog-rotation
 
 on:
@@ -14,7 +19,7 @@ on:
         type: string
         default: ""
       force:
-        description: Rebuild even when no PHP update is detected
+        description: Rebuild everything even when no PHP update is detected
         required: false
         type: boolean
         default: false
@@ -27,13 +32,20 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
+
+concurrency:
+  group: auto-catalog-rotation
+  cancel-in-progress: false
 
 jobs:
   plan:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       catalog_tag: ${{ steps.plan.outputs.catalog_tag }}
       has_update: ${{ steps.plan.outputs.has_update }}
+      has_builds: ${{ steps.plan.outputs.has_builds }}
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
@@ -43,10 +55,13 @@ jobs:
 
       - name: Plan catalog rotation
         id: plan
+        env:
+          INPUT_CATALOG_TAG: ${{ github.event.inputs.catalog_tag }}
+          INPUT_FORCE: ${{ github.event.inputs.force }}
         run: |
           set -euo pipefail
 
-          CATALOG_TAG="${{ github.event.inputs.catalog_tag }}"
+          CATALOG_TAG="${INPUT_CATALOG_TAG}"
           if [[ -z "${CATALOG_TAG}" ]]; then
             CATALOG_TAG="catalog-$(date -u +%F)"
           fi
@@ -54,10 +69,22 @@ jobs:
           scripts/plan-catalog-update.py > plan.json
           cat plan.json
 
+          if [[ "${INPUT_FORCE}" == "true" ]]; then
+            MATRIX="$(jq -c '.matrix' plan.json)"
+          else
+            MATRIX="$(jq -c '.build_matrix' plan.json)"
+          fi
+
+          HAS_BUILDS="false"
+          if [[ "$(jq -r '.include | length' <<<"${MATRIX}")" != "0" ]]; then
+            HAS_BUILDS="true"
+          fi
+
           {
             echo "catalog_tag=${CATALOG_TAG}"
             echo "has_update=$(jq -r '.has_update' plan.json)"
-            echo "matrix=$(jq -c '.matrix' plan.json)"
+            echo "has_builds=${HAS_BUILDS}"
+            echo "matrix=${MATRIX}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Upload catalog plan
@@ -70,7 +97,9 @@ jobs:
 
   build:
     needs: plan
-    if: needs.plan.outputs.has_update == 'true' || github.event.inputs.force == 'true'
+    if: >-
+      (needs.plan.outputs.has_update == 'true' || github.event.inputs.force == 'true') &&
+      needs.plan.outputs.has_builds == 'true'
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
@@ -83,8 +112,13 @@ jobs:
     needs:
       - plan
       - build
-    if: needs.plan.outputs.has_update == 'true' || github.event.inputs.force == 'true'
+    # Runs even when the build job was skipped (manifest-only changes such as
+    # a dropped minor line reuse every tarball), but never after a failure.
+    if: >-
+      !failure() && !cancelled() &&
+      (needs.plan.outputs.has_update == 'true' || github.event.inputs.force == 'true')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -104,16 +138,42 @@ jobs:
           name: catalog-plan
           path: .
 
+      - name: Reuse unchanged tarballs from previous release
+        if: github.event.inputs.force != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          UNCHANGED="$(jq -r '.unchanged | length' plan.json)"
+          PREV_TAG="$(jq -r '.catalog_tag // empty' manifest.json)"
+          mkdir -p prev-dist
+
+          if [[ "${UNCHANGED}" -eq 0 || -z "${PREV_TAG}" ]]; then
+            echo "nothing to reuse (unchanged=${UNCHANGED}, previous tag: ${PREV_TAG:-none})"
+            exit 0
+          fi
+
+          echo "reusing ${UNCHANGED} unchanged runtime(s) from ${PREV_TAG}"
+          gh release download "${PREV_TAG}" --dir prev-dist \
+            --pattern 'php-*.tar.gz' \
+            --pattern 'php-*.tar.gz.sha256'
+
       - name: Apply plan and prepare manifest
+        env:
+          CATALOG_TAG: ${{ needs.plan.outputs.catalog_tag }}
         run: |
           set -euo pipefail
           python3 scripts/apply-catalog-plan.py \
             --plan plan.json \
             --github-repo "${GITHUB_REPOSITORY}"
           scripts/sync-runtime-recipes.sh --plan plan.json
+          REUSE_ARGS=()
+          [[ -d prev-dist ]] && REUSE_ARGS=(--reuse-dir prev-dist)
           scripts/prepare-catalog.sh \
-            --catalog-tag "${{ needs.plan.outputs.catalog_tag }}" \
-            --github-repo "${GITHUB_REPOSITORY}"
+            --catalog-tag "${CATALOG_TAG}" \
+            --github-repo "${GITHUB_REPOSITORY}" \
+            "${REUSE_ARGS[@]}"
 
       - name: Upload prepared catalog
         uses: actions/upload-artifact@v4
@@ -153,7 +213,6 @@ jobs:
       - name: Open or update catalog PR
         id: pr
         if: github.event.inputs.dry_run != 'true'
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.PHPVM_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
           CATALOG_TAG: ${{ needs.plan.outputs.catalog_tag }}
@@ -185,7 +244,16 @@ jobs:
             echo "Removed:"
             jq -r 'if (.removed | length) == 0 then "- none" else .removed[] | "- `" + . + "`" end' plan.json
             echo
-            echo "The workflow built all planned tarballs, updated \`manifest.json\`, and verified strict manifest/assets checks."
+            echo "Rebuilt:"
+            jq -r 'if (.build_versions | length) == 0 then "- none (all tarballs reused from the previous catalog release)" else .build_versions[] | "- `" + . + "`" end' plan.json
+            echo
+            if [[ "$(jq -r '.ignored_downgrades | length' plan.json)" != "0" ]]; then
+              echo "Ignored php.net downgrades:"
+              jq -r '.ignored_downgrades[] | "- `" + .minor + "`: kept `" + .shipped + "` (php.net suggested `" + .planned + "`)"' plan.json
+              echo
+            fi
+            echo "The workflow verified strict manifest/assets checks. Unchanged tarballs keep"
+            echo "their previous checksums and are re-attached from the prior catalog release."
             echo
             echo "GitHub Release \`${CATALOG_TAG}\` is published before this PR is merged, so phpvm never sees unpublished \`/releases/download\` URLs."
           } > "${BODY}"
@@ -233,3 +301,49 @@ jobs:
           # unpublished /releases/download URLs, then land the manifest.
           gh pr merge "${{ steps.pr.outputs.pr_number }}" --squash --delete-branch
           echo "Auto-merged PR #${{ steps.pr.outputs.pr_number }}"
+
+      - name: Close resolved update issues
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CATALOG_TAG: ${{ needs.plan.outputs.catalog_tag }}
+        run: |
+          set -euo pipefail
+          TITLE="PHP catalog updates available"
+          while IFS= read -r number; do
+            [[ -n "${number}" ]] || continue
+            gh issue close "${number}" \
+              --comment "Closed automatically: catalog \`${CATALOG_TAG}\` shipped the planned update."
+            echo "Closed issue #${number}"
+          done < <(gh issue list --state open --search "${TITLE} in:title" --json number -q '.[].number')
+
+      - name: Alert on rotation failure
+        if: failure() && github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CATALOG_TAG: ${{ needs.plan.outputs.catalog_tag }}
+        run: |
+          set -euo pipefail
+          TITLE="Catalog rotation failed"
+          BODY="$(mktemp)"
+          {
+            echo "Automated catalog rotation for \`${CATALOG_TAG}\` failed."
+            echo
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "The catalog on \`master\` is unchanged; phpvm keeps serving the previous"
+            echo "release. Check the failing step in the linked run and re-dispatch with the"
+            echo "same inputs once fixed."
+          } > "${BODY}"
+
+          EXISTING="$(gh issue list --state open --search "${TITLE} in:title" --json number --limit 1 -q '.[0].number // empty')"
+          if [[ -n "${EXISTING}" ]]; then
+            gh issue comment "${EXISTING}" --body-file "${BODY}"
+            echo "Commented on issue #${EXISTING}"
+          else
+            gh label create "automation" \
+              --description "Automated workflow failure" \
+              --color "d73a4a" 2>/dev/null || true
+            gh issue create --title "${TITLE}" --body-file "${BODY}" --label "automation"
+            echo "Opened failure alert issue"
+          fi

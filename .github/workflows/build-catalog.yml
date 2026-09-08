@@ -1,4 +1,7 @@
 # Build the planned catalog tarballs (4 PHP versions × 2 platforms).
+#
+# This is the full-build manual path; the scheduled auto-catalog-rotation
+# workflow only builds changed lines and reuses the remaining tarballs.
 name: build-catalog
 
 on:
@@ -7,9 +10,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build-catalog
+  cancel-in-progress: false
+
 jobs:
   plan:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
@@ -50,6 +58,7 @@ jobs:
       - plan
       - build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 

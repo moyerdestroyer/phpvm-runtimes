@@ -6,7 +6,8 @@
 #   download-spc.sh spc-linux-x86_64 [output-path]
 #
 # Default asset is chosen from the host OS/arch. SHA-256 pins live in
-# builds/common/spc-pin.json (bump when intentionally upgrading spc).
+# builds/common/spc-pin.json; "channel" points at a frozen spc-toolchain-*
+# release of this repo (see the update-spc-toolchain workflow for upgrades).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -85,7 +86,7 @@ if [[ "${ACTUAL}" != "${PIN}" ]]; then
   echo "error: spc checksum mismatch for ${ASSET}" >&2
   echo "  expected: ${PIN}" >&2
   echo "  actual:   ${ACTUAL}" >&2
-  echo "  bump builds/common/spc-pin.json if upgrading spc intentionally" >&2
+  echo "  run the update-spc-toolchain workflow to upgrade the vendored toolchain" >&2
   exit 1
 fi
 

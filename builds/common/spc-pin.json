@@ -1,7 +1,8 @@
 {
-  "channel": "https://dl.static-php.dev/v3/spc-bin/nightly",
+  "channel": "https://github.com/moyerdestroyer/phpvm-runtimes/releases/download/spc-toolchain-2026-09-08",
+  "upstream_channel": "https://dl.static-php.dev/v3/spc-bin/nightly",
   "assets": {
-    "spc-linux-x86_64": "3f0234eb36723b87967d67df4ec108b374d96922ceb9344b41e77c5c8aebc161",
-    "spc-macos-aarch64": "e04f96581b992b74651c665149442e367db868cc8f73ab0c26969f06e68713b6"
+    "spc-linux-x86_64": "2da7febc04af4e3c99ba8f06469e5b4fd4d88d0773d9425b2f8b8b5c2f453e5b",
+    "spc-macos-aarch64": "bcfc3aa9164dbb70e63a3be228d1e7be79393e30c6a76078fc29f04c04167632"
   }
 }
