@@ -28,7 +28,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y jq
 
       - name: Vendor and smoke-test upstream binaries
         id: vendor
