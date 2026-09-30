@@ -214,11 +214,32 @@ jobs:
             git push --force-with-lease origin "HEAD:${BRANCH}"
           fi
 
+      - name: Resolve automation token
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          AUTOMATION_TOKEN: ${{ secrets.PHPVM_AUTOMATION_TOKEN }}
+          FALLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # A present-but-expired PAT must not fail the rotation after the
+          # builds already succeeded; degrade to GITHUB_TOKEN instead.
+          if [[ -n "${AUTOMATION_TOKEN}" ]] && GH_TOKEN="${AUTOMATION_TOKEN}" gh api user --silent; then
+            echo "GH_TOKEN=${AUTOMATION_TOKEN}" >> "${GITHUB_ENV}"
+            echo "Using PHPVM_AUTOMATION_TOKEN"
+          else
+            if [[ -n "${AUTOMATION_TOKEN}" ]]; then
+              echo "::warning::PHPVM_AUTOMATION_TOKEN is expired or invalid; falling back to GITHUB_TOKEN (PRs created with GITHUB_TOKEN do not trigger pull_request workflows)"
+            else
+              echo "PHPVM_AUTOMATION_TOKEN not set; using GITHUB_TOKEN"
+            fi
+            echo "GH_TOKEN=${FALLBACK_TOKEN}" >> "${GITHUB_ENV}"
+          fi
+
       - name: Open or update catalog PR
         id: pr
         if: github.event.inputs.dry_run != 'true'
         env:
-          GH_TOKEN: ${{ secrets.PHPVM_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
           CATALOG_TAG: ${{ needs.plan.outputs.catalog_tag }}
         run: |
           set -euo pipefail
@@ -297,8 +318,6 @@ jobs:
 
       - name: Auto-merge catalog PR
         if: github.event.inputs.dry_run != 'true' && steps.pr.outputs.pr_number != ''
-        env:
-          GH_TOKEN: ${{ secrets.PHPVM_AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           # Publish the GitHub Release first so master never points at
