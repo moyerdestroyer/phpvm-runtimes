@@ -60,10 +60,14 @@ jobs:
           fi
 
           brew update
-          # Some macos-14 runner images ship a linked openssl@1.1 that owns
-          # /opt/homebrew/bin/openssl, which makes the openssl@3 dependency
-          # upgrade fail at `brew link` (e.g. 2026-09-29 rotation).
-          brew unlink openssl@1.1 >/dev/null 2>&1 || true
+          # Some macos-14 runner images retain an openssl@1.1 symlink even
+          # when brew cannot unlink that old formula. It blocks openssl@3
+          # during the curl dependency upgrade.
+          brew unlink openssl@1.1 || true
+          openssl_link="$(brew --prefix)/bin/openssl"
+          if [[ -L "${openssl_link}" && "$(readlink "${openssl_link}")" == *'/openssl@1.1/'* ]]; then
+            rm "${openssl_link}"
+          fi
           brew install \
             autoconf \
             automake \
